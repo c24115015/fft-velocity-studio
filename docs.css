@@ -1,0 +1,26 @@
+/* 說明頁共用樣式：顏色與 index.html 的 :root 相同，不得新增顏色 */
+:root{
+  --bg:#f4f5f7; --panel:#fff; --line:#e2e5e9;
+  --ink:#1c2024; --ink-2:#59616b; --ink-3:#8b939c; --link:#0a66d8;
+  --ok:#17803d; --ok-bg:#ecf7ef;
+  --font:"Inter","Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SFMono-Regular",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.75 var(--font)}
+a{color:var(--link)}
+.top{display:flex;align-items:baseline;gap:14px;padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+.top b{font-size:16px;margin-right:auto}
+.top a{font-size:13px;text-decoration:none}
+main{max-width:760px;margin:0 auto;padding:32px 20px 56px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--ink-2);margin:0 0 26px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 20px;margin-bottom:14px}
+h2{font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:.06em;margin:0 0 4px}
+section p,section ol,section ul{margin:6px 0}
+code{font-family:var(--mono);font-size:.88em;background:#eef1f4;padding:1px 5px;border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--ink-3);font-weight:500}
+.note{background:var(--ok-bg);color:var(--ok);border-radius:7px;padding:8px 12px;font-size:13.5px}
+footer{text-align:center;color:var(--ink-3);font-size:12px;padding:20px}

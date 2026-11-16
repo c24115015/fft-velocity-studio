@@ -1,0 +1,1631 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FFT Velocity Studio</title><style>html,body{margin:0}</style><title>FFT Velocity Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: desktop-app shell — left control column (tabs of cards) + right plot workspace. Light, ink-on-paper, single theme by choice. */
+.brand a{margin-left:auto;font-size:12px;color:var(--link);text-decoration:none}
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --line:#e2e5e9; --line-strong:#cfd5dc;
+  --ink:#1c2024; --ink-2:#59616b; --ink-3:#8b939c;
+  --accent:#1c2024; --link:#0a66d8;
+  --ok:#17803d; --ok-bg:#ecf7ef; --warn:#9a5800; --warn-bg:#fff5e3; --bad:#c62828;
+  --font:"Inter","Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SFMono-Regular",monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:13px/1.45 var(--font);}
+.app{display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;height:100%;
+  padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+@media (max-width:860px){.app{grid-template-columns:1fr;height:auto}}
+aside{display:flex;flex-direction:column;min-height:0;gap:10px}
+.brand{display:flex;align-items:baseline;gap:8px;padding:2px 2px 0}
+.brand h1{font-size:18px;font-weight:700;margin:0;letter-spacing:-.01em}
+.brand span{color:var(--ink-3);font-size:11px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.tab{appearance:none;border:0;background:none;padding:8px 12px;color:var(--ink-2);font:inherit;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.tab:hover{color:var(--ink)}
+.pane{overflow:auto;min-height:0;flex:1;display:flex;flex-direction:column;gap:10px;padding:2px 2px 6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+.ct{font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+.ct .sp{flex:1}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.row>label.k{width:64px;flex:none;color:var(--ink-2);font-size:12px}
+.grow{flex:1;min-width:0}
+button{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line-strong);border-radius:7px;padding:6px 12px;cursor:pointer}
+button:hover{background:#f3f4f6}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #8bb4f0;outline-offset:1px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{background:#383e46}
+button.link{border:0;background:none;color:var(--link);padding:2px 4px;font-size:12px}
+button.link:hover{text-decoration:underline;background:none}
+button.small{padding:3px 10px;font-size:12px}
+button:disabled{opacity:.45;cursor:not-allowed}
+select,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line-strong);border-radius:7px;padding:5px 8px;min-width:0;width:100%}
+select{appearance:none;padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%2359616b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+input[type=checkbox]{appearance:none;width:15px;height:15px;border:1.5px solid #8c959f;border-radius:4px;margin:0;flex:none;display:grid;place-content:center;background:#fff;cursor:pointer}
+input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent)}
+input[type=checkbox]:checked::after{content:"";width:8px;height:5px;border:2px solid #fff;border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
+label.cb{display:flex;align-items:center;gap:8px;cursor:pointer}
+/* number inputs: hide the native spinner, use a slim custom stepper */
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.num{position:relative;display:flex;min-width:0}
+.num.grow{flex:1}
+.num>input{padding-right:22px}
+.num .stp{position:absolute;right:3px;top:3px;bottom:3px;width:16px;display:flex;flex-direction:column;opacity:0;transition:opacity .12s}
+.num:hover .stp,.num:focus-within .stp{opacity:1}
+.num .stp button{flex:1;padding:0;border:0;border-radius:3px;background:transparent;display:grid;place-items:center;color:var(--ink-3);min-height:0}
+.num .stp button:hover{background:#eef0f3;color:var(--ink)}
+.num .stp button:active{background:#e2e5e9}
+.num .stp svg{width:8px;height:5px;display:block}
+input[type=range]{appearance:none;height:4px;border-radius:2px;background:var(--line-strong);padding:0;border:0;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--ink)}
+.figbox .ylab{cursor:ew-resize;pointer-events:auto}
+.figbox svg{pointer-events:none}.figbox svg .ylab{pointer-events:all}
+/* switch-style toggles */
+.togs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+label.sw{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fafbfc;font-size:12.5px;color:var(--ink-2);user-select:none;transition:background .15s,border-color .15s,color .15s}
+label.sw:hover{border-color:var(--line-strong)}
+label.sw:has(input:checked){background:#fff;border-color:var(--line-strong);color:var(--ink);font-weight:500}
+label.sw.wide{grid-column:1/-1}
+label.sw small{display:block;font-size:11px;color:var(--ink-3);font-weight:400}
+input[type=checkbox].switch{width:28px;height:16px;border:0;border-radius:999px;background:#cfd4da;position:relative;display:block;transition:background .15s}
+input[type=checkbox].switch::after{content:"";position:absolute;left:2px;top:2px;width:12px;height:12px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transform:none;transition:left .15s}
+input[type=checkbox].switch:checked{background:var(--ink)}
+input[type=checkbox].switch:checked::after{left:14px;width:12px;height:12px;border:0;transform:none}
+input[type=checkbox].switch:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.hint{color:var(--ink-3);font-size:11.5px}
+.dslist{display:flex;flex-direction:column;gap:2px;max-height:132px;overflow:auto}
+.ds{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer}
+.ds:hover{background:#f5f6f8}
+.ds.sel{background:#eef1f4}
+.ds .sw{width:12px;height:12px;border-radius:3px;flex:none}
+.ds .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file{display:flex;align-items:center;gap:8px}
+.file .k{width:34px;color:var(--ink-3);font-size:11.5px;flex:none}
+.file .v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file .v.none{color:var(--ink-3)}
+.file .seg{margin-left:auto;flex:none}
+.file .seg button{white-space:nowrap}
+.unit{border-radius:7px;padding:6px 9px;font-size:12px}
+.unit.ok{color:var(--ok);background:var(--ok-bg)}
+.unit.warn{color:var(--warn);background:var(--warn-bg)}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:4px}
+.chip{display:flex;align-items:center;gap:6px;padding:5px 7px;white-space:nowrap;border:1px solid var(--line);border-radius:7px;font-variant-numeric:tabular-nums;cursor:pointer;font-size:12px}
+.chip .cdot{width:18px;height:12px;border-radius:3px;flex:none;margin-left:auto;cursor:pointer;border:1px solid rgba(0,0,0,.15)}
+.chip .cdot:hover{outline:2px solid #f0a33a}
+.chip.clip{color:var(--bad);border-color:#f0c9c9;background:#fdf6f6}
+.chip.off{color:var(--ink-3)}
+.vcgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+.vcgrid .lim{color:var(--ink-3);font-variant-numeric:tabular-nums;margin-left:auto}
+.seg{display:flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;flex:1;padding:5px 8px;background:#fff;color:var(--ink-2)}
+.seg button+button{border-left:1px solid var(--line-strong)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.colorbtn{width:30px;height:30px;padding:0;border-radius:7px;flex:none;position:relative;overflow:hidden}
+.colorbtn{cursor:pointer;border:1px solid rgba(0,0,0,.12)}
+.colorbtn input{position:absolute;inset:0;opacity:0;pointer-events:none}
+.pal{position:fixed;z-index:60;background:#fff;border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:10px 12px 8px;display:flex;flex-direction:column;gap:6px;font-size:12px}
+.pal .pt{color:var(--ink-2);font-size:11.5px}
+.pal .grid{display:grid;grid-template-columns:repeat(10,18px);gap:0 4px}
+.pal .grid.theme{row-gap:0}
+.pal .grid.theme .c:nth-child(-n+10){margin-bottom:5px}
+.pal .c{width:18px;height:18px;border:1px solid rgba(0,0,0,.14);padding:0;border-radius:0;cursor:pointer}
+.pal .c:hover{outline:2px solid #f0a33a;outline-offset:0;z-index:1;position:relative}
+.pal .c.on{outline:2px solid #1c2024;outline-offset:1px;position:relative;z-index:2}
+.pal .more{border:0;background:none;text-align:left;padding:5px 2px 2px;border-top:1px solid var(--line);border-radius:0;margin-top:2px;color:var(--ink)}
+.pal .more:hover{background:#f3f4f6}
+.adv{display:flex;flex-direction:column;gap:7px;padding-top:2px}
+
+main{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.vtabs{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--line)}
+.vtabs .sp{flex:1}
+.plotwrap{flex:1;min-height:360px;background:var(--panel);border:1px solid var(--line);border-radius:10px;position:relative;overflow:hidden}
+.plotwrap svg{display:block;width:100%;height:100%}
+#preview{display:grid;place-items:center;background:#e8eaee}
+#preview svg{display:block;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.08)}
+#preview{overflow:auto}
+.figbox{position:relative;margin:auto}
+.rh{position:absolute;touch-action:none;z-index:2}
+.rh.e{top:0;right:-7px;width:14px;height:100%;cursor:ew-resize}
+.rh.s{left:0;bottom:-7px;height:14px;width:100%;cursor:ns-resize}
+.rh.se{right:-9px;bottom:-9px;width:18px;height:18px;cursor:nwse-resize;background:#fff;border:2px solid #1c2024;border-radius:4px}
+.rh.e:hover,.rh.s:hover{background:rgba(10,102,216,.15)}
+.axbox{position:absolute;pointer-events:none;z-index:1}
+.axbox:hover,.figbox:hover .axbox{outline:1px dashed rgba(10,102,216,.45)}
+.ah{position:absolute;pointer-events:auto;touch-action:none}
+.ah.l,.ah.r{top:0;width:10px;height:100%;cursor:ew-resize}.ah.l{left:-5px}.ah.r{right:-5px}
+.ah.t,.ah.b{left:0;height:10px;width:100%;cursor:ns-resize}.ah.t{top:-5px}.ah.b{bottom:-5px}
+.ah:hover{background:rgba(10,102,216,.18)}
+.zbox{position:absolute;border:1px solid #0a66d8;background:rgba(10,102,216,.08);pointer-events:none;z-index:3}
+#live{cursor:default;user-select:none;-webkit-user-select:none}
+#preview{user-select:none;-webkit-user-select:none}
+.figsz{position:absolute;right:0;top:-22px;font-size:11.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.readout{position:absolute;pointer-events:none;background:#1c2024;color:#fff;border-radius:6px;padding:6px 8px;font-size:11.5px;line-height:1.5;font-variant-numeric:tabular-nums;white-space:nowrap;transform:translate(12px,-50%)}
+.readout i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+table.res{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-variant-numeric:tabular-nums}
+.res th{font-weight:500;color:var(--ink-3);font-size:11.5px;text-align:left;padding:7px 12px;border-bottom:1px solid var(--line)}
+.res td{padding:7px 12px}
+.res tr+tr td{border-top:1px solid #f0f2f4}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-weight:600;font-size:12px;background:#eef1f4}
+.pill.good{background:var(--ok-bg);color:var(--ok)}
+.pill.bad{background:#fdecec;color:var(--bad)}
+.resw{overflow-x:auto}
+.status{color:var(--warn);font-size:12px;min-height:1em}
+.bottom{display:flex;gap:8px}
+.bottom button{flex:1}
+.thumb{display:block;width:100%;height:64px;padding:0;border:1px solid var(--line);border-radius:7px;background:#fafbfc;overflow:hidden;cursor:zoom-in}
+.thumb svg{display:block;width:100%;height:100%}
+.thumb:hover{border-color:var(--line-strong)}
+.rawnav{display:flex;align-items:center;gap:4px;margin-right:12px}
+.rawnav select{width:auto;padding-block:3px}
+.segsm button{padding:3px 10px;font-size:12px}
+.rawnav .seg{margin-right:6px}
+.vtabs .cb{font-size:12px;color:var(--ink-2)}
+.ovl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.ovl .grab{pointer-events:stroke;cursor:ew-resize}
+.ovl .knob{pointer-events:all;cursor:ew-resize}
+.curpanel{overflow-x:auto}
+table.cur{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-variant-numeric:tabular-nums;font-size:12.5px}
+.cur th{font-weight:500;color:var(--ink-3);font-size:11.5px;text-align:right;padding:6px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.cur th:first-child,.cur td:first-child{text-align:left}
+.cur td{padding:6px 12px;text-align:right;white-space:nowrap}
+.cur tr+tr td{border-top:1px solid #f0f2f4}
+.cur .tagA,.cur .tagB{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:4px;color:#fff;font-size:10px;font-weight:700;margin-right:4px;vertical-align:-3px}
+.cur .tagA{background:#0a66d8}.cur .tagB{background:#6f42c1}
+select.lw{width:64px;flex:none}
+select.ls{width:84px;flex:none}
+.colorbtn.sm{width:26px;height:26px}
+.stylerow{display:flex;align-items:center;gap:6px}
+.segblk{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--line);border-radius:8px}
+.tplgrid{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto minmax(0,1fr) auto;gap:6px 8px;align-items:center}
+.tplgrid label{color:var(--ink-2);font-size:12px}
+.bincfg{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fafbfc}
+.binhead,.binrow{display:grid;grid-template-columns:minmax(0,1fr) 10px minmax(0,1fr) minmax(0,1fr) 22px;gap:6px;align-items:center}
+.binhead span{font-size:11px;color:var(--ink-3)}
+#binRows{display:flex;flex-direction:column;gap:5px}
+.binrow input{padding:4px 6px}
+.binrow .x{border:0;background:none;color:var(--ink-3);padding:0;font-size:15px;line-height:1}
+.binrow .x:hover{color:var(--bad);background:none}
+.custom{display:flex;flex-direction:column;gap:8px}
+.custom .row input[type=text]{flex:1}
+.custom .row input[type=number]{width:80px;flex:none}
+.custom .seg2 input[type=number]{width:auto;flex:1;min-width:0}
+.custom .seg2>span{flex:none}
+.custom .seg2>.num{flex:1}
+.custom .dot{width:18px;height:0;border-top:2px dashed;flex:none}
+main{gap:0!important}
+main>.vtabs{margin-bottom:10px}
+.split{flex:none;height:14px;cursor:row-resize;display:grid;place-items:center;touch-action:none}
+.split span{width:44px;height:4px;border-radius:2px;background:#cfd5dc}
+.split:hover span,.split.drag span{background:#8b939c}
+.lower{flex:none;height:200px;min-height:40px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.plotwrap{min-height:160px!important}
+@media (max-width:860px){.lower{height:auto}.split{display:none}}
+.modal{position:fixed;inset:0;z-index:80;background:rgba(28,32,36,.35);display:grid;place-items:center;padding:16px}
+.modal .box{background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:18px 20px;max-width:440px;display:flex;flex-direction:column;gap:14px}
+.modal .msg{line-height:1.7}
+.modal .btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.drop{position:fixed;inset:0;background:rgba(28,32,36,.55);display:grid;place-items:center;color:#fff;font-size:18px;font-weight:600;z-index:50}
+@media (prefers-reduced-motion:no-preference){.ds,.chip,button{transition:background .12s,border-color .12s}}
+</style>
+
+<div class="app">
+  <aside>
+    <div class="brand"><h1>FFT Velocity Studio</h1><span>網頁預覽版</span><a href="docs/guide.html">使用說明</a></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="data" aria-selected="true">資料</button>
+      <button class="tab" role="tab" data-tab="ana" aria-selected="false">分析</button>
+      <button class="tab" role="tab" data-tab="plot" aria-selected="false">圖表</button>
+    </div>
+
+    <!-- ===== 資料 ===== -->
+    <div class="pane" data-pane="data">
+      <div class="card">
+        <div class="ct">FFT 資料</div>
+        <div class="dslist" id="dslist"></div>
+        <div class="row">
+          <button class="primary grow" id="btnAdd">＋ 加入資料</button>
+          <button id="btnDel">移除</button>
+        </div>
+        <input type="file" id="fileIn" multiple accept=".tdms,.dat,.txt,.csv" hidden>
+      </div>
+
+      <div class="card" id="detail">
+        <div class="row">
+          <input type="text" id="dsLabel" class="grow" placeholder="圖例名稱">
+          <span class="colorbtn" id="colorSw" title="線條顏色"><input type="color" id="dsColor"></span>
+          <select id="dsLs" style="width:84px"><option value="-">實線</option><option value="--">虛線</option><option value=":">點線</option><option value="-.">點虛線</option></select>
+          <select id="dsLw" class="lw" title="粗細"></select>
+        </div>
+        <div class="file"><span class="k">FFT</span><span class="v" id="fFft"></span></div>
+        <div class="file"><span class="k">校正</span><select id="calSel" class="grow" aria-label="校正檔"></select></div>
+        <input type="file" id="calIn" accept=".dat,.txt,.csv" hidden>
+        <input type="file" id="rawIn" accept=".tdms" multiple hidden>
+        <div class="row" style="align-items:flex-start">
+          <div class="unit grow" id="unitLine"></div>
+          <button class="link" id="btnAdv" aria-expanded="false">單位設定</button>
+        </div>
+        <div class="adv" id="adv" hidden>
+          <div class="row"><label class="k" for="uFft">FFT 電壓</label><select id="uFft" class="grow"></select></div>
+          <div class="row"><label class="k" for="uSens">靈敏度</label><select id="uSens" class="grow"></select></div>
+          <div class="row"><label class="k" for="uGain">前級增益</label><input type="number" id="uGain" class="grow" min="0.001" step="any" value="1"></div>
+          <div class="row"><span class="k"></span><button class="small" id="btnUnitReset">恢復自動</button></div>
+        </div>
+      </div>
+
+      <div class="card" id="rawcard">
+        <div class="ct">RAW 資料</div>
+        <div class="dslist" id="rawlist"></div>
+        <div class="row">
+          <button class="primary grow" id="btnRawAdd">＋ 加入 RAW</button>
+          <button id="btnRawDel">移除</button>
+        </div>
+        <button class="thumb" id="rawThumb" title="看大圖"></button>
+        <div class="hint" id="rawNote"></div>
+      </div>
+
+      <div class="card" id="meascard">
+        <div class="ct">量測序列<span class="sp"></span><button class="link" id="mAll">全選</button><button class="link" id="mNone">全不選</button></div>
+        <div class="togs"><label class="sw"><span>個別序列</span><input type="checkbox" class="switch" id="pSeq"></label><label class="sw"><span>平均曲線</span><input type="checkbox" class="switch" id="pIndiv" checked></label></div>
+        <div class="chips" id="chips"></div>
+        <button class="grow" id="btnGroup" title="同一個檔案再做一組平均（例如 #1–#40 一組、#67–#70 一組），兩組會畫在一起比較">＋ 再做一組平均</button>
+        <div class="hint" id="measNote"></div>
+      </div>
+    </div>
+
+    <!-- ===== 分析 ===== -->
+    <div class="pane" data-pane="ana" hidden>
+      <div class="card">
+        <div class="ct">頻譜</div>
+        <div class="seg" id="modeSeg"><button data-v="窄頻" aria-pressed="true">窄頻</button><button data-v="1/3 倍頻程" aria-pressed="false">1/3 倍頻程</button></div>
+        <div class="row"><label class="k" for="aQ">物理量</label><select id="aQ" class="grow"><option>速度</option><option>位移</option><option>加速度</option></select><select id="aUnit" class="grow"></select></div>
+        <div class="row"><label class="k" for="aAvg">序列平均</label><select id="aAvg" class="grow"><option value="算術平均">算術平均 (Ave)</option><option value="功率平均 (RMS)">功率平均 (RMS)</option><option value="中位數">中位數 (Median)</option><option value="最大值保持">最大值保持 (Max hold)</option></select></div>
+        <div class="row"><label class="k" for="aSm">平滑</label><select id="aSm" class="grow"><option value="無">無</option><option value="ma3">3 點平均</option><option value="ma5">5 點平均</option><option value="ma7">7 點平均</option><option value="ma10">10 點平均</option><option value="分段">分段合併（自動）</option></select></div>
+        <div class="hint" id="smInfo"></div>
+        <div class="togs"><label class="sw wide"><span>顯示個別序列</span><input type="checkbox" class="switch" id="aSplit"></label></div>
+      </div>
+      <div class="card">
+        <div class="ct">VC 準則線<span class="sp"></span><button class="link" data-vcp="all">全部</button><button class="link" data-vcp="none">清除</button></div>
+        <div class="row" id="vcStyle"></div>
+        <div class="vcgrid" id="vcgrid"></div>
+      </div>
+      <div class="card">
+        <div class="ct">自訂準則線</div>
+        <div class="custom" id="custom"></div>
+      </div>
+    </div>
+
+    <!-- ===== 圖表 ===== -->
+    <div class="pane" data-pane="plot" hidden>
+      <div class="card">
+        <div class="ct">樣板</div>
+        <div class="seg" id="tplSeg"><button data-v="paper" aria-pressed="true">論文單欄</button><button data-v="slide" aria-pressed="false">簡報 16:9</button></div>
+        <div class="tplgrid">
+          <label for="tW">寬</label><input type="number" id="tW" min="1" step="0.1"><span class="hint">cm</span>
+          <label for="tH">高</label><input type="number" id="tH" min="1" step="0.1"><span class="hint">cm</span>
+          <label for="tF">字級</label><input type="number" id="tF" min="4" step="0.5"><span class="hint">pt</span>
+          <label for="tD">解析度</label><input type="number" id="tD" min="72" step="50"><span class="hint">dpi</span>
+          <label for="tL">線寬</label><input type="number" id="tL" min="0.1" step="0.1"><span class="hint">pt</span>
+        </div>
+        <div class="row"><span class="hint grow" id="tplInfo"></span><button class="link" id="tReset">恢復預設</button></div>
+      </div>
+      <div class="card">
+        <div class="ct">文字與座標</div>
+        <div class="row"><label class="k" for="pTitle">標題</label><input type="text" id="pTitle" class="grow" placeholder="（不顯示）"></div>
+        <div class="row"><label class="k" for="pYl">Y 標籤</label><input type="text" id="pYl" class="grow" placeholder="自動"></div>
+        <div class="row"><label class="k" for="pYg">標籤距離</label><input type="range" id="pYg" class="grow" min="-2" max="3" step="0.05" value="0.55" title="往左拉＝靠近數字；點兩下恢復"></div>
+        <div class="row"><label class="k" for="pX0">X 範圍</label><input type="text" id="pX0" class="grow" value="1"><span>–</span><input type="text" id="pX1" class="grow" value="100"></div>
+        <div class="row"><label class="k" for="pY0">Y 範圍</label><input type="text" id="pY0" class="grow" placeholder="自動"><span>–</span><input type="text" id="pY1" class="grow" placeholder="自動"></div>
+        <div class="row"><span class="k"></span><label class="cb"><input type="checkbox" id="pGrid" checked>格線</label></div>
+      </div>
+      <div class="card">
+        <div class="ct">顯示</div>
+        <div class="row"><label class="k" for="pLeg">圖例</label><select id="pLeg" class="grow"><option value="ur">右上</option><option value="ul">左上</option><option value="ll">左下</option><option value="lr" selected>右下</option><option value="none">不顯示</option></select></div>
+        <label class="cb"><input type="checkbox" id="pVc">畫 VC 準則線</label>
+        <label class="cb"><input type="checkbox" id="pLegN">圖例附上量測時間</label>
+        <label class="cb"><input type="checkbox" id="pVcLeg">圖例附上 VC 等級</label>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="vtabs" role="tablist">
+      <button class="tab" data-view="fft" aria-selected="true">FFT</button>
+      <button class="tab" data-view="raw" aria-selected="false">RAW</button>
+      <button class="tab" data-view="out" aria-selected="false">輸出預覽</button>
+      <span class="sp"></span>
+      <span class="rawnav" id="zoomBar" hidden><button class="small" id="zoomReset" title="也可以在圖上點兩下">↺ 重設縮放</button><button class="small" id="zoomApply" title="把目前看到的範圍填進「圖表」的 X / Y 範圍">套用到輸出圖</button></span>
+      <span class="rawnav" id="outBar" hidden><button class="small primary" id="expPng" title="依「圖表」樣板的尺寸與 dpi 輸出">匯出 PNG</button><button class="small" id="expSvg" title="向量圖，放大不會糊">匯出 SVG</button></span>
+      <span class="rawnav" id="rawNav" hidden>
+        <span class="seg segsm" id="rawQty"><button data-v="V" aria-pressed="true">mV</button><button data-v="v" aria-pressed="false">µm/s</button></span>
+        <select id="rawBand" title="只保留這個頻帶"><option value="all">全頻帶</option><option value="1-80">1–80 Hz</option><option value="1-100">1–100 Hz</option><option value="1-200">1–200 Hz</option></select>
+        <span class="seg segsm" id="rawMode"><button data-v="one" aria-pressed="true">單條</button><button data-v="all" aria-pressed="false">連續</button></span>
+        <button class="small" id="rawPrev" aria-label="上一條">‹</button>
+        <select id="rawSel"></select>
+        <button class="small" id="rawNext" aria-label="下一條">›</button>
+        <button class="small" id="rawZoom" title="把 A–B 之間放大到整個畫面">放大 A–B</button>
+        <button class="small" id="rawBack" title="回到上一個範圍" disabled>↩ 上一步</button>
+        <button class="small" id="rawFull" title="顯示整段（也可以在圖上點兩下）" disabled>整段</button>
+        <button class="small" id="rawExport" title="把目前看到的範圍存成 PNG（不含上方文字）">匯出圖片</button>
+      </span>
+      <button class="small" id="fftExport" title="把目前看到的圖存成 PNG（不含上方文字）">匯出圖片</button>
+      <label class="cb" id="curToggle" title="拖曳 A / B，或用鍵盤 ← → 一格一格移動（Shift 一次 10 格，按 A / B 切換）"><input type="checkbox" id="curOn">游標 A / B</label>
+    </div>
+    <div class="plotwrap" id="live"><svg id="ovl" class="ovl"></svg><div class="readout" id="readout" hidden></div></div>
+    <div class="plotwrap" id="preview" hidden></div>
+    <div class="split" id="split" role="separator" aria-orientation="horizontal" tabindex="0" title="拖動調整圖與下方表格的比例（點兩下恢復）"><span></span></div>
+    <div class="lower" id="lower">
+      <div class="curpanel" id="curPanel"><table class="cur"><thead id="curHead"></thead><tbody id="curBody"></tbody></table></div>
+      <div class="resw"><table class="res"><thead><tr><th>資料組</th><th>使用序列</th><th>VC 等級</th><th id="custTh">自訂準則</th><th title="目前圖上曲線、在 X 範圍內的最大值">最高點</th></tr></thead><tbody id="resBody"></tbody></table></div>
+      <div class="status" id="status"></div>
+    </div>
+  </main>
+</div>
+<div class="drop" id="dropOv" hidden>放開以加入檔案</div>
+<script>window.CAL_PRESETS=[{"name":"SN1922-Vertical.dat","label":"SN1922 垂直（Vertical）","unit":null,"text":"Frequency\tSensitivity(V/in/sec)\n0.252445041632808\t1.08398525769142\n0.258527922443053\t1.13855511142563\n0.264757375508044\t1.19587211408595\n0.27113693261256\t1.25607456230879\n0.27767021064278\t1.31930771484302\n0.284360913636869\t1.38232527697163\n0.288452473647746\t1.42716830616484\n0.295402984560025\t1.49901463910057\n0.302520974021996\t1.57061601540455\n0.30981047757363\t1.64968377543643\n0.317275627994712\t1.73273195500761\n0.324920657647917\t1.81996093591344\n0.332749900878344\t1.91158118754518\n0.340767796470874\t2.01275059401538\n0.348978890166733\t2.1088908910672\n0.357387837240699\t2.22050280750047\n0.36599940514041\t2.33802172459587\n0.37481847618926\t2.45572212931385\n0.385682314007759\t2.60480994721867\n0.394975661706547\t2.72923033136053\n0.404492940626222\t2.86662491208251\n0.414239546582513\t3.01833949413514\n0.42422100540798\t3.16251237697131\n0.434442976084878\t3.32171918962806\n0.444911253953516\t3.48894077224458\n0.455631773997923\t3.66458060339339\n0.466610614210681\t3.84906247351615\n0.477853999038841\t4.03291536153674\n0.48936830291287\t4.2359398951639\n0.501160053860628\t4.44918506511972\n0.513235937208435\t4.67316539743265\n0.525602799371305\t4.90842132033772\n0.538267651734525\t5.15552046824234\n0.551237674628751\t5.40177714343465\n0.564520221400893\t5.68766329414918\n0.57400798120628\t5.88661124389883\n0.587839198136599\t6.16778892945002\n0.602003690157226\t6.46239724385986\n0.616509487818644\t6.77107770955637\n0.631364815174372\t7.1119464783996\n0.646578094443584\t7.4333758618\n0.662157950786083\t7.78843573140144\n0.67811321719233\t8.16045525881451\n0.694452939491301\t8.52927272813517\n0.711186381479018\t8.9147591603215\n0.728323030170651\t9.29481380118463\n0.745872601179172\t9.71489939631817\n0.763845044223624\t10.1042213784353\n0.782250548770101\t10.5608887137809\n0.801099549808664\t10.9841134904086\n0.820402733769451\t11.3962776801186\n0.840171044581343\t11.8239077806121\n0.860415689876617\t12.2675841295369\n0.881148147345109\t12.6966901762087\n0.902380171241479\t13.108574453892\n0.924123799049286\t13.4675110318702\n0.95544790057648\t14.0761845898138\n0.978470241051119\t14.4971743613407\n1.00204732465787\t14.8576014063682\n1.02619251841051\t15.2269893462258\n1.05091951141255\t15.6055609656277\n1.07624232261826\t15.91518375425\n1.10217530878065\t16.230949626831\n1.12873317259109\t16.5529804654862\n1.15593097101499\t16.8399943355375\n1.18378412382827\t17.0899639082505\n1.21230842235968\t17.3436439802688\n1.24152003844361\t17.557918160986\n1.27143553358875\t17.7312419806746\n1.30207186836763\t17.9062767746481\n1.33344641203236\t18.0830394328703\n1.36557695236216\t18.2167555918023\n1.39848170574812\t18.3064485655625\n1.43217932752097\t18.441816737211\n1.4666889225277\t18.4871615385485\n1.50203005596307\t18.5781858972177\n1.53822276446204\t18.7155634474533\n1.57528756745959\t18.7615813381273\n1.61324547882413\t18.8077123777466\n1.65211801877137\t18.8077123777466\n1.69192722606513\t18.853956844522\n1.73269567051227\t18.853956844522\n1.77444646575856\t18.9003150173486\n1.81720328239301\t18.9003150173486\n1.86099036136784\t18.9003150173486\n1.90583252774194\t18.9003150173486\n1.95175520475535\t18.9003150173486\n1.99878442824301\t18.9003150173486\n2.04694686139573\t18.853956844522\n2.09626980987687\t18.853956844522\n2.14678123730329\t18.8077123777466\n2.19850978109929\t18.8077123777466\n2.25148476873258\t18.8077123777466\n2.30573623434149\t18.7615813381273\n2.36129493576277\t18.7615813381273\n2.41819237196978\t18.7155634474533\n2.47646080093077\t18.7155634474533\n2.53613325789752\t18.6696584281957\n2.5972435741347\t18.6238660035068\n2.65982639610042\t18.6238660035068\n2.72391720508907\t18.5781858972177\n2.78955233734741\t18.5781858972177\n2.85676900467536\t18.5326178338368\n2.92560531552324\t18.5326178338368\n2.96770072717286\t18.5326178338368\n3.03921003346427\t18.4871615385485\n3.1124424181104\t18.441816737211\n3.18743940016898\t18.441816737211\n3.26424349913523\t18.441816737211\n3.34289825904823\t18.396583156355\n3.4234482731782\t18.396583156355\n3.50593920930865\t18.351460523182\n3.59041783562767\t18.351460523182\n3.67693204724315\t18.351460523182\n3.76553089333687\t18.3064485655625\n3.85626460497292\t18.3064485655625\n3.94918462357616\t18.2615470120347\n4.04434363009689\t18.2615470120347\n4.14179557487834\t18.2615470120347\n4.24159570824372\t18.2167555918023\n4.3438006118204\t18.2167555918023\n4.44846823061881\t18.2167555918023\n4.55565790588433\t18.1720740347336\n4.66543040874082\t18.1720740347336\n4.77784797464468\t18.1720740347336\n4.89297433866931\t18.1720740347336\n5.0108747716396\t18.127502071359\n5.13161611713721\t18.127502071359\n5.2552668293975\t18.127502071359\n5.38189701211962\t18.127502071359\n5.51157845821177\t18.0830394328703\n5.64438469049411\t18.0830394328703\n5.78039100338254\t18.0830394328703\n5.91967450557677\t18.0830394328703\n6.06231416377708\t18.0830394328703\n6.20839084745444\t18.0386858511183\n6.3579873746994\t18.0386858511183\n6.51118855917579\t18.0386858511183\n6.66808125820571\t18.0386858511183\n6.82875442201334\t18.0830394328703\n6.9932991441551\t18.0386858511183\n7.1618087131652\t18.0386858511183\n7.33437866544543\t18.0386858511183\n7.51110683942952\t18.0386858511183\n7.51110683942952\t17.8185444541416\n7.69209343105258\t18.0386858511183\n7.87744105055708\t18.0386858511183\n8.06725478066775\t18.0386858511183\n8.26164223616809\t18.0386858511183\n8.46071362491253\t18.0386858511183\n8.66458181030875\t18.0386858511183\n8.87336237530549\t17.9944410586117\n9.08717368792219\t17.9944410586117\n9.30613696835779\t17.9944410586117\n9.53037635771633\t17.9944410586117\n9.66750528410472\t17.9944410586117\n9.90045215442255\t17.9944410586117\n10.1390120803112\t17.9944410586117\n10.3833203131814\t17.9944410586117\n10.6335153634433\t17.9944410586117\n10.8897390790345\t17.9944410586117\n11.152136725841\t17.9503047885153\n11.4208570700556\t17.9503047885153\n11.6960524625206\t17.9503047885153\n11.9778789251032\t17.9503047885153\n12.2664962391518\t17.9503047885153\n12.5620680360841\t17.9503047885153\n12.864761890158\t17.9503047885153\n13.1747494134774\t17.9503047885153\n13.4922063532876\t17.9503047885153\n13.8173126916155\t17.9503047885153\n14.1502527473098\t17.9503047885153\n14.4912152805408\t17.9503047885153\n14.8403935998176\t17.9503047885153\n15.1979856715847\t17.9503047885153\n15.5641942324584\t17.9503047885153\n15.9392269041686\t17.9503047885153\n16.3232963112696\t17.9503047885153\n16.7166202016876\t17.9503047885153\n17.1194215701728\t17.9503047885153\n17.5319287847259\t17.9503047885153\n17.9543757160715\t17.9503047885153\n18.3870018702507\t17.9503047885153\n18.8300525244091\t17.9503047885153\n19.2837788658567\t17.9062767746481\n19.7484381344777\t17.9062767746481\n20.2242937685735\t17.9062767746481\n20.711615554218\t17.9062767746481\n21.2106797782132\t17.9062767746481\n21.7217693847297\t17.9062767746481\n22.2451741357215\t17.9062767746481\n22.7811907752067\t17.9062767746481\n23.3301231975063\t17.9062767746481\n23.8922826195367\t17.9062767746481\n24.4679877572543\t17.9062767746481\n"},{"name":"SN1922-East.dat","label":"SN1922 東（East）","unit":"V/(in/s)","text":"Frequency\tSensitivity\n0.252440148651501\t1.27312779250427\n0.258513383151623\t1.33713215914926\n0.264732728234751\t1.40091424851872\n0.271746963388074\t1.4749557944152\n0.278284683485958\t1.54910672569384\n0.284979688815462\t1.6230001422458\n0.291835763363007\t1.7045937550636\n0.298856782150603\t1.79028935005588\n0.30604671342599\t1.87568733748825\n0.313409620905472\t1.96515886546717\n0.315652843052499\t2.00901748137227\n0.323246855917444\t2.09454984835679\n0.331023566428433\t2.19984983256869\n0.338987369946716\t2.31611696491868\n0.347142767577654\t2.42065328648983\n0.355494368714726\t2.5423475746682\n0.364046893644736\t2.67015983928619\n0.372805176215698\t2.79752823165845\n0.381774166568904\t2.92379271452289\n0.384506706377784\t2.98904621840279\n0.393757213506608\t3.1086691155852\n0.403230270413422\t3.26495224680215\n0.412931231226708\t3.42069263085292\n0.422865578885194\t3.59266222150515\n0.433038928236787\t3.77327729519271\n0.443457029212058\t3.95326512063761\n0.454125770074076\t4.14183848453464\n0.465051180746433\t4.33940692275284\n0.476239436221321\t4.55756333512632\n0.487696860049617\t4.7749621239887\n0.499429927914917\t5.00273097902978\n0.511445271293572\t5.24136455927277\n0.52374968120276\t5.49138111930387\n0.536350112038743\t5.75332363479616\n0.549253685507459\t6.01299587877157\n0.562467694649674\t6.29981976367612\n0.575999607962982\t6.60032533781018\n0.589857073622959\t6.89822641208161\n0.604047923805881\t7.20957304327789\n0.618580179115434\t7.51651504505584\n0.63346205311592\t7.85576770187145\n0.648701956974529\t8.19022094195108\n0.66430850421529\t8.53891327030889\n0.680290515587398\t8.90245090512635\n0.696657024050657\t9.25873076548409\n0.713417279880873\t9.67661711202935\n0.713417279880873\t9.58215275728294\n0.730580755898063\t10.0638794322769\n0.730580755898063\t9.99010550719023\n0.748157152820451\t10.4410019418899\n0.748157152820451\t10.3644634956303\n0.766156404747272\t10.7792537198347\n0.784588684773474\t11.1284636669207\n0.803464410739513\t11.488986789326\n0.822794251119459\t11.8903151231195\n0.842589131050779\t12.2454504621615\n0.862860238509165\t12.6421600321447\n0.883619030631935\t12.9878590827407\n0.904877240193548\t13.3430112515759\n0.92664688223692\t13.7078750335588\n0.948940260864268\t14.0482201400039\n0.971769976191333\t14.3970154833528\n0.995148931468909\t14.7183295426689\n1.0190903403757\t15.0099572935768\n1.04360773448663\t15.3073633323572\n1.06871497092083\t15.5724235673264\n1.09442624017363\t15.8420735495066\n1.12075607413691\t16.1163927543403\n1.14771935431255\t16.3553010706082\n1.1753313202233\t16.5977509475995\n1.20360757802613\t16.7613776266163\n1.23256410933275\t16.9681812453689\n1.26221728024237\t17.1354597612896\n1.29258385059169\t17.3043873697962\n1.32368098342753\t17.4749803282446\n1.35552625470728\t17.6040278031386\n1.38813766323277\t17.7340282548293\n1.42153364082309\t17.8212281273249\n1.4557330627322\t17.9528325380963\n1.4907552583171\t18.0411082916792\n1.52662002196272\t18.1298181053836\n1.56334762426959\t18.1743364513451\n1.60095882351075\t18.2637013603481\n1.63947487736414\t18.3085484609076\n1.67891755492744\t18.3535056849513\n1.71930914902178\t18.398573302891\n1.73986790257489\t18.4437515858024\n1.78172584723234\t18.4437515858024\n1.82459081519791\t18.4890408054268\n1.86848703355565\t18.5344412341728\n1.9134393122476\t18.5344412341728\n1.95947305809631\t18.5799531451181\n2.00661428916458\t18.5799531451181\n2.05488964946084\t18.5799531451181\n2.10432642399815\t18.6255768120107\n2.15495255421561\t18.6255768120107\n2.20679665377069\t18.6255768120107\n2.2598880247116\t18.6255768120107\n2.31425667403861\t18.6255768120107\n2.36993333066391\t18.6255768120107\n2.42694946277943\t18.6255768120107\n2.48533729564255\t18.6255768120107\n2.54512982978963\t18.6255768120107\n2.60636085968776\t18.6255768120107\n2.66906499283528\t18.6255768120107\n2.73327766932175\t18.6255768120107\n2.79903518185853\t18.6255768120107\n2.86637469629127\t18.6255768120107\n2.93533427260583\t18.6255768120107\n3.00595288643968\t18.6255768120107\n3.07827045111071\t18.6255768120107\n3.15232784017603\t18.6255768120107\n3.22816691053358\t18.6255768120107\n3.30583052607943\t18.6255768120107\n3.38536258193422\t18.6255768120107\n3.46680802925254\t18.5799531451181\n3.5502129006291\t18.6255768120107\n3.63562433611611\t18.5799531451181\n3.72309060986667\t18.5799531451181\n3.81266115741906\t18.5799531451181\n3.90438660363752\t18.5799531451181\n3.99831879132515\t18.5344412341728\n4.09451081052526\t18.5344412341728\n4.19301702852759\t18.5344412341728\n4.29389312059648\t18.5344412341728\n4.39719610143827\t18.5344412341728\n4.50298435742573\t18.5344412341728\n4.6113176795978\t18.4890408054268\n4.7222572974532\t18.4890408054268\n4.83586591355704\t18.4890408054268\n4.95220773898008\t18.4890408054268\n5.07134852959048\t18.4890408054268\n5.19335562321873\t18.4890408054268\n5.3182979777167\t18.4890408054268\n5.44624620993228\t18.4890408054268\n5.57727263562174\t18.4890408054268\n5.71145131032219\t18.4890408054268\n5.84885807120753\t18.4890408054268\n5.9895705799512\t18.4890408054268\n6.1336683666202\t18.4437515858024\n6.2812328746252\t18.4437515858024\n6.43234750675188\t18.4437515858024\n6.58709767229987\t18.4437515858024\n6.7455708353557\t18.4437515858024\n6.90785656422705\t18.4437515858024\n7.07404658206639\t18.4437515858024\n7.24423481871248\t18.4437515858024\n7.41851746377909\t18.4437515858024\n7.5969930210209\t18.4437515858024\n7.77976236400741\t18.4437515858024\n7.9669287931362\t18.4437515858024\n8.15859809401784\t18.4437515858024\n8.35487859726546\t18.4437515858024\n8.55588123972268\t18.4437515858024\n8.76171962716464\t18.4437515858024\n8.97251009850742\t18.4437515858024\n9.18837179156235\t18.4437515858024\n9.40942671037205\t18.4437515858024\n9.63579979416663\t18.4890408054268\n9.86761898797875\t18.4890408054268\n10.1050153149576\t18.4890408054268\n10.3481229504224\t18.4437515858024\n10.5970792976981\t18.4437515858024\n10.8520250657747\t18.4437515858024\n11.1131043488353\t18.4437515858024\n11.3804647076979\t18.4437515858024\n11.6542572532158\t18.4437515858024\n11.9346367316848\t18.4437515858024\n12.2217616123049\t18.4437515858024\n12.5157941767469\t18.4890408054268\n12.8169006108728\t18.4890408054268\n13.1252510986632\t18.4890408054268\n13.4410199184052\t18.4890408054268\n13.7643855411928\t18.4890408054268\n14.0955307317986\t18.4890408054268\n14.4346426519713\t18.4890408054268\n14.7819129662187\t18.4890408054268\n15.1375379501359\t18.4890408054268\n15.5017186013389\t18.4437515858024\n15.8746607530677\t18.4437515858024\n16.2565751905226\t18.4437515858024\n16.6476777699986\t18.4437515858024\n17.0481895408867\t18.4437515858024\n17.4583368706099\t18.4437515858024\n17.878351572565\t18.4437515858024\n18.3084710371423\t18.4437515858024\n18.7489383658982\t18.4437515858024\n19.2000025089543\t18.4437515858024\n19.6619184057033\t18.4437515858024\n20.1349471288996\t18.4437515858024\n20.6193560322163\t18.4437515858024\n21.1154189013522\t18.4437515858024\n21.6234161087744\t18.4437515858024\n22.1436347721837\t18.4437515858024\n22.6763689167915\t18.4437515858024\n23.2219196415024\t18.4437515858024\n23.7805952890933\t18.4437515858024\n24.3527116204878\t18.4437515858024\n"},{"name":"SN1922-North.dat","label":"SN1922 北（North）","unit":"V/(in/s)","text":"Frequency\tSensitivity\n0.250714574250677\t1.1058726750298\n0.257380453364336\t1.14679063317052\n0.264917800460516\t1.19943261780769\n0.271961308155289\t1.2518128230477\n0.279192085261782\t1.30369127759904\n0.286615110809489\t1.36062454394213\n0.294235496207962\t1.4200441326778\n0.302058488766459\t1.47889454037587\n0.312540153025274\t1.56339892462266\n0.320849821039021\t1.63167383671686\n0.329380422529092\t1.70293037016698\n0.338137831569022\t1.78110125139982\n0.3471280784094\t1.86286046882055\n0.356357353630235\t1.94006236385459\n0.365832012403712\t2.02911849162469\n0.375558578870293\t2.12226262916251\n0.385543750631165\t2.21494357716933\n0.395794403360131\t2.31661778202327\n0.406317595538116\t2.41778637881099\n0.417120573313559\t2.52877182787892\n0.428210775492027\t2.63920536568911\n0.439595838658487\t2.76035477543869\n0.451283602435774\t2.8870653967838\n0.463282114882864\t3.01314590833539\n0.475599638036671\t3.14473245913735\n0.484416248572358\t3.2471799675886\n0.497295675958366\t3.38898697752669\n0.510517535395902\t3.54455417108957\n0.524090931304469\t3.70726248141494\n0.538025210167522\t3.88573546408666\n0.552329966968345\t4.05542871579199\n0.567015051797045\t4.23253261084669\n0.582090576633209\t4.4268217079424\n0.5975669223089\t4.62014463928535\n0.613454745656775\t4.83222658004063\n0.629764986848259\t5.05404387609455\n0.646508876926816\t5.28604341671289\n0.663697945541523\t5.51688926412787\n0.681344028886244\t5.77013514134985\n0.699459277849905\t6.02212167104661\n0.718056166383449\t6.2851126589741\n0.737147500089259\t6.55958867884035\n0.756746425038943\t6.84605129140101\n0.776866436825573\t7.14502396098091\n0.797521389856587\t7.44113276734826\n0.818725506893781\t7.74951311061837\n0.840493388846932\t8.07067355593594\n0.840493388846932\t7.96784209891174\n0.862840024827821\t8.38719939799609\n0.885780802471558\t8.71613914925447\n0.909331518532332\t9.05797967403968\n0.933508389760872\t9.39313040297135\n0.958328064071113\t9.71988629186741\n0.983807632003762\t10.0580089356522\n1.00996463849464\t10.3856736794188\n1.03681709495592\t10.701117962795\n1.0643834916786\t11.0026032593646\n1.09268281056467\t11.3125823772681\n1.12173453819784\t11.5816837592624\n1.1515586792618\t11.8318722724641\n1.18217577031519\t12.0874653791118\n1.21360689393283\t12.2959095437319\n1.24587369322297\t12.50794825596\n1.27899838673046\t12.7236435025277\n1.31300378373616\t12.8878524293336\n1.34791329996321\t13.0263109162398\n1.38375097370078\t13.166256908741\n1.42054148235655\t13.2792954400923\n1.45831015944933\t13.3361781201146\n1.49708301205338\t13.4219593295104\n1.53688673870664\t13.4794531190911\n1.57774874779495\t13.5082923023739\n1.61969717642525\t13.5371931868611\n1.66276090980036\t13.566155904562\n1.70696960110909\t13.566155904562\n1.75235369194502\t13.566155904562\n1.79894443326826\t13.566155904562\n1.84677390692449\t13.5371931868611\n1.89587504773615\t13.5371931868611\n1.94628166618099\t13.4794531190911\n1.99802847167352\t13.4794531190911\n2.0511510964656\t13.4506755052853\n2.10568612018233\t13.4219593295104\n2.16167109501036\t13.3933044606007\n2.21914457155594\t13.3361781201146\n2.27814612539036\t13.3077063876047\n2.33871638430128\t13.2509451478058\n2.40089705626851\t13.222655381251\n2.4647309581837\t13.166256908741\n2.5302620453335\t13.1381479451769\n2.59753544166669\t13.110098992126\n2.66659747086601\t13.0541806053654\n2.73749568824611\t13.0263109162398\n2.81027891349957\t12.9985007267944\n2.8849972643136\t12.9430583391064\n2.96170219088051\t12.9154258876221\n3.04044651132568\t12.8878524293336\n3.12128444807753\t12.8328819888288\n3.20427166520448\t12.8054847555267\n3.28946530674452\t12.7781460132472\n3.37692403605401\t12.7508656371167\n3.46670807620255\t12.7236435025277\n3.55887925144188\t12.6964794851389\n3.65350102977736\t12.6693734608745\n3.7506385666713\t12.6423253059237\n3.85035874990828\t12.6153348967397\n3.95273024565327\t12.5884021100397\n4.05782354573436\t12.5615268228041\n4.16571101618265\t12.5347089122758\n4.27646694706263\t12.50794825596\n4.39016760362748\t12.50794825596\n4.50689127883443\t12.4812447316232\n4.62671834725638\t12.4545982172929\n4.74973132042691\t12.4545982172929\n4.87601490365678\t12.4280085912571\n5.005656054361\t12.4014757320636\n5.13874404193673\t12.4014757320636\n5.27537050923311\t12.3749995185195\n5.41562953565553\t12.3485798296906\n5.55961770194756\t12.3485798296906\n5.70743415669538\t12.3222165449008\n5.8591806846003\t12.3222165449008\n6.01496177656658\t12.2959095437319\n6.17488470165264\t12.2959095437319\n6.33905958093527\t12.2696587060226\n6.50759946333775\t12.2696587060226\n6.68062040347405\t12.243463911868\n6.85824154156265\t12.243463911868\n7.04058518546515\t12.243463911868\n7.22777689490605\t12.2173250416195\n7.4199455679317\t12.2173250416195\n7.61722352966802\t12.2173250416195\n7.81974662343807\t12.2173250416195\n8.02765430430215\t12.1912419758837\n8.24108973508497\t12.1912419758837\n8.46019988495591\t12.1652145955223\n8.68513563063029\t12.1652145955223\n8.91605186026132\t12.1652145955223\n9.15310758009433\t12.1652145955223\n9.39646602395656\t12.1652145955223\n9.64629476565816\t12.1392427816511\n9.90276583438156\t12.1392427816511\n10.1660558331387\t12.1392427816511\n10.436346060378\t12.1392427816511\n10.7138226348241\t12.1392427816511\n10.9986766236374\t12.1133264156399\n11.2911041739803\t12.1133264156399\n11.5913066480823\t12.1133264156399\n11.8994907618954\t12.1133264156399\n12.2158687274364\t12.1133264156399\n12.5406583989136\t12.1133264156399\n12.8740834227388\t12.1133264156399\n13.2163733915275\t12.0874653791118\n13.5677640021938\t12.0874653791118\n13.9284972182487\t12.0874653791118\n14.2988214364131\t12.0874653791118\n14.6789916576609\t12.0616595539423\n15.0692696628101\t12.0616595539423\n15.4699241927816\t12.0616595539423\n15.8812311336516\t12.0616595539423\n16.3034737066228\t12.0616595539423\n16.7369426630482\t12.0616595539423\n17.1819364846382\t12.0616595539423\n17.6387615889924\t12.0616595539423\n18.1077325405946\t12.0616595539423\n18.5891722674187\t12.0616595539423\n19.0834122832931\t12.0616595539423\n19.5907929161771\t12.0616595539423\n20.1116635425069\t12.0616595539423\n20.6463828277723\t12.0616595539423\n21.1953189734894\t12.0616595539423\n21.7588499707399\t12.0616595539423\n22.3373638604517\t12.0616595539423\n22.9312590005991\t12.0616595539423\n23.5409443405075\t12.0616595539423\n24.1668397024512\t12.0359088222596\n24.8093760707385\t12.0359088222596\n25.468995888482\t12.0359088222596\n26.1461533622599\t12.0359088222596\n26.8413147748779\t12.0359088222596\n27.5549588064455\t12.0359088222596\n28.28757686399\t12.0359088222596\n29.0396734198335\t12.0359088222596\n29.8117663589668\t12.0359088222596\n30.604387335659\t12.0359088222596\n31.4180821395483\t12.0359088222596\n32.2534110714669\t12.0359088222596\n33.1109493292572\t12.0359088222596\n33.9912874038465\t12.0359088222596\n34.8950314858525\t12.0359088222596\n35.8228038829986\t12.0359088222596\n36.7752434486285\t12.0359088222596\n37.7530060216126\t12.0359088222596\n38.7567648779513\t12.0359088222596\n39.0630646645449\t12.0359088222596\n"}];</script>
+<script>
+"use strict";
+/* ================= constants ================= */
+const VOLT = {V:1, mV:1e-3, uV:1e-6, nV:1e-9};
+const SENS = {"V/(m/s)":1, "V/(mm/s)":1e3, "mV/(mm/s)":1, "V/(in/s)":1/0.0254, "mV/(in/s)":1e-3/0.0254};
+const QUANT = {
+  "速度": {"nm/s":1e9,"µm/s":1e6,"mm/s":1e3,"m/s":1},
+  "位移": {"nm":1e9,"µm":1e6,"mm":1e3,"m":1},
+  "加速度": {"µg":1e6/9.80665,"mg":1e3/9.80665,"g":1/9.80665,"mm/s²":1e3,"m/s²":1}
+};
+const PREF = {"速度":"µm/s","位移":"nm","加速度":"µg"};
+const QEN = {"速度":"Velocity","位移":"Displacement","加速度":"Acceleration"};
+const VC = [["VC-A",50],["VC-B",25],["VC-C",12.5],["VC-D",6.25],["VC-E",3.12],["VC-F",1.56],["VC-G",0.78]];
+const PALETTE = ["#000000","#d62728","#1f63c6","#2ca02c","#ff7f0e","#7b3fa0","#8c564b","#6e6e6e"];
+const TPL = {
+  paper:{name:"論文單欄", w:8.6, h:6.4, dpi:600, font:8, lw:1, lwI:0.4, lwVc:0.5, frame:0.6, legend:6.5, title:8, tickIn:true},
+  slide:{name:"簡報 16:9", w:25.4, h:14.29, dpi:200, font:16, lw:1.5, lwI:0.8, lwVc:1.2, frame:1.2, legend:13, title:20, tickIn:false},
+  screen:{font:11, lw:1.6, lwI:0.6, lwVc:1.0, frame:1.0, legend:10, title:14, tickIn:false}
+};
+const $ = s => document.querySelector(s);
+
+/* ================= TDMS reader ================= */
+const TDT = {1:["Int8",1],2:["Int16",2],3:["Int32",4],4:["BigInt64",8],5:["Uint8",1],6:["Uint16",2],7:["Uint32",4],8:["BigUint64",8],9:["Float32",4],10:["Float64",8],0x19:["Float32",4],0x1A:["Float64",8],0x21:["Uint8",1]};
+function readTDMS(buf){
+  const dv = new DataView(buf), u8 = new Uint8Array(buf), dec = new TextDecoder();
+  const objs = new Map(); let segList = []; let pos = 0;
+  const str = (o,le)=>{const n=dv.getUint32(o,le); return [dec.decode(u8.subarray(o+4,o+4+n)), o+4+n];};
+  const val = (o,t,le)=>{
+    if(t===0x20) return str(o,le);
+    if(t===0x44) return [null,o+16];
+    const d=TDT[t]; if(!d) throw new Error("未知 TDMS 型別 "+t);
+    let v=dv["get"+d[0]](o,le); if(typeof v==="bigint") v=Number(v); return [v,o+d[1]];
+  };
+  while(pos+28<=buf.byteLength){
+    if(dec.decode(u8.subarray(pos,pos+4))!=="TDSm") break;
+    const toc=dv.getUint32(pos+4,true), le=!(toc&0x40);
+    const nxt=Number(dv.getBigUint64(pos+12,le)), raw=Number(dv.getBigUint64(pos+20,le));
+    const dataStart=pos+28+raw, segEnd=(nxt===-1||nxt>=2**53)?buf.byteLength:Math.min(buf.byteLength,pos+28+nxt);
+    if(toc&0x4) segList=[];
+    if(toc&0x2){
+      let o=pos+28; const nobj=dv.getUint32(o,le); o+=4;
+      for(let i=0;i<nobj;i++){
+        let p; [p,o]=str(o,le);
+        if(!objs.has(p)) objs.set(p,{path:p,props:{},type:null,n:0,chunks:[]});
+        const ob=objs.get(p);
+        const idx=dv.getUint32(o,le); o+=4; let has;
+        if(idx===0xFFFFFFFF) has=false;
+        else if(idx===0) has=true;
+        else if(idx===0x69120000||idx===0x69130000) throw new Error("不支援 DAQmx 原始格式");
+        else { ob.type=dv.getUint32(o,le); ob.n=Number(dv.getBigUint64(o+8,le)); if(ob.type===0x20) ob.strBytes=Number(dv.getBigUint64(o+16,le)); o+=idx-4; has=true; }
+        const np=dv.getUint32(o,le); o+=4;
+        for(let k=0;k<np;k++){ let name,t,v; [name,o]=str(o,le); t=dv.getUint32(o,le); o+=4; [v,o]=val(o,t,le); ob.props[name]=v; }
+        const at=segList.indexOf(ob);
+        if(has){ if(at<0) segList.push(ob); } else if(at>=0) segList.splice(at,1);
+      }
+    }
+    if(toc&0x8){
+      const chans=segList.filter(c=>c.type!==null&&c.n>0&&c.type!==0x20&&TDT[c.type]);
+      const size=chans.reduce((s,c)=>s+c.n*TDT[c.type][1],0);
+      if(size){
+        const nch=Math.max(1,Math.floor((segEnd-dataStart)/size)); let o=dataStart;
+        for(let k=0;k<nch;k++){
+          if(toc&0x20){ // interleaved
+            const n=chans[0].n, arrs=chans.map(()=>new Float64Array(n));
+            for(let i=0;i<n;i++) chans.forEach((c,j)=>{const d=TDT[c.type]; let v=dv["get"+d[0]](o,le); arrs[j][i]=Number(v); o+=d[1];});
+            chans.forEach((c,j)=>c.chunks.push(arrs[j]));
+          } else for(const c of chans){
+            const d=TDT[c.type], a=new Float64Array(c.n);
+            for(let i=0;i<c.n;i++){ let v=dv["get"+d[0]](o,le); a[i]=Number(v); o+=d[1]; }
+            c.chunks.push(a);
+          }
+        }
+      }
+    }
+    pos=segEnd;
+  }
+  const groups={};
+  for(const [p,ob] of objs){
+    const parts=[...p.matchAll(/'((?:[^']|'')*)'/g)].map(m=>m[1].replace(/''/g,"'"));
+    if(parts.length===1) groups[parts[0]] ??= {};
+    if(parts.length===2){
+      const g=(groups[parts[0]] ??= {});
+      const len=ob.chunks.reduce((s,a)=>s+a.length,0), out=new Float64Array(len); let k=0;
+      for(const a of ob.chunks){out.set(a,k); k+=a.length;}
+      g[parts[1]]=out;
+    }
+  }
+  return groups;
+}
+function guessVolt(t){const m=/\(\s*([numµ]?V)\s*to/i.exec(t||""); if(!m) return null; let u=m[1].replace("µ","u"); u=u.length===2?u[0].toLowerCase()+"V":"V"; return VOLT[u]?u:null;}
+function guessSens(h){h=(h||"").toLowerCase().replace(/\s|\(|\)/g,"").replace(/sec/g,"s");
+  for(const [k,u] of [["mv/mm/s","mV/(mm/s)"],["v/mm/s","V/(mm/s)"],["mv/in/s","mV/(in/s)"],["v/in/s","V/(in/s)"],["v/m/s","V/(m/s)"]]) if(h.includes(k)) return u; return null;}
+function parseFFT(groups){
+  const g=Object.entries(groups).find(([_,c])=>Object.keys(c).length>=2); if(!g) throw new Error("找不到頻譜資料");
+  const [gname,chs]=g, names=Object.keys(chs);
+  const fk=names.find(n=>/^freq/i.test(n))||names[0], freq=Array.from(chs[fk]);
+  const meas=names.filter(n=>n!==fk&&chs[n].length===freq.length);
+  return {group:gname,freq,names:meas,amps:meas.map(n=>Array.from(chs[n])),unitGuess:guessVolt(gname)};
+}
+function clipsOf(data){
+  const names=Object.keys(data); let hi=-Infinity,lo=Infinity;
+  for(const n of names) for(const v of data[n]){ if(v>hi)hi=v; if(v<lo)lo=v; }
+  const tol=1e-6*Math.max(Math.abs(hi),Math.abs(lo),1e-12); let th=0,tl=0; const cnt={};
+  for(const n of names){ let a=0,b=0; for(const v of data[n]){ if(v>=hi-tol)a++; if(v<=lo+tol)b++; } cnt[n]=[a,b]; th+=a; tl+=b; }
+  const out={}; for(const n of names) out[n]=(th>=3?cnt[n][0]:0)+(tl>=3?cnt[n][1]:0);
+  return {clips:out, hi:th>=3?hi:null, lo:tl>=3?lo:null};
+}
+function parseRaw(groups){
+  const g=Object.entries(groups).find(([_,c])=>Object.keys(c).length>=2); if(!g) throw new Error("RAW 檔沒有資料");
+  const [gname,chs]=g, names=Object.keys(chs), tk=names.find(n=>/^time/i.test(n));
+  const meas=names.filter(n=>n!==tk), data={}; for(const n of meas) data[n]=Float32Array.from(chs[n]);
+  const tsc=/to\s*m(sec|s)\b/i.test(gname)?1e-3:1, t=tk?chs[tk]:null;
+  const c=clipsOf(data);
+  return {group:gname,names:meas,data,t0:t?t[0]*tsc:0,dt:t&&t.length>1?(t[1]-t[0])*tsc:1,unit:(guessVolt(gname)||"").replace("uV","µV"),...c};
+}
+/* FFT for any length: radix-2 when N is a power of 2, otherwise Bluestein (chirp-z) on a power-of-2 grid.
+   Both are O(N log N), so odd lengths (e.g. 25601) no longer stall the page. Returns [re, im]. */
+function fft2(re,im,inv){ const n=re.length;
+  for(let i=1,j=0;i<n;i++){ let b=n>>1; for(;j&b;b>>=1) j^=b; j^=b; if(i<j){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; } }
+  for(let len=2;len<=n;len<<=1){ const a=(inv?2:-2)*Math.PI/len, wr=Math.cos(a), wi=Math.sin(a), h=len>>1;
+    for(let i=0;i<n;i+=len){ let cr=1,ci=0;
+      for(let k=0;k<h;k++){ const p=i+k, q=p+h, xr=re[q]*cr-im[q]*ci, xi=re[q]*ci+im[q]*cr;
+        re[q]=re[p]-xr; im[q]=im[p]-xi; re[p]+=xr; im[p]+=xi; const t=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=t; } } } }
+const _blu=new Map();
+function fftC(re,im){ const n=re.length;
+  if(n<=1) return [Float64Array.from(re),Float64Array.from(im)];
+  if(!(n&(n-1))){ const r=Float64Array.from(re), i=Float64Array.from(im); fft2(r,i,false); return [r,i]; }
+  let B=_blu.get(n);
+  if(!B){ let m=1; while(m<2*n-1) m<<=1;
+    const cr=new Float64Array(n), ci=new Float64Array(n);
+    for(let k=0;k<n;k++){ const a=Math.PI*((k*k)%(2*n))/n; cr[k]=Math.cos(a); ci[k]=-Math.sin(a); }   // w_k = e^{-iπk²/n}
+    const br=new Float64Array(m), bi=new Float64Array(m); br[0]=cr[0]; bi[0]=-ci[0];
+    for(let k=1;k<n;k++){ br[k]=br[m-k]=cr[k]; bi[k]=bi[m-k]=-ci[k]; }
+    fft2(br,bi,false); B={m,cr,ci,br,bi}; if(_blu.size>8) _blu.clear(); _blu.set(n,B); }
+  const {m,cr,ci,br,bi}=B, ar=new Float64Array(m), ai=new Float64Array(m);
+  for(let k=0;k<n;k++){ ar[k]=re[k]*cr[k]-im[k]*ci[k]; ai[k]=re[k]*ci[k]+im[k]*cr[k]; }
+  fft2(ar,ai,false);
+  for(let k=0;k<m;k++){ const r=ar[k]*br[k]-ai[k]*bi[k]; ai[k]=ar[k]*bi[k]+ai[k]*br[k]; ar[k]=r; }
+  fft2(ar,ai,true);
+  const oR=new Float64Array(n), oI=new Float64Array(n);
+  for(let k=0;k<n;k++){ const r=ar[k]/m, i=ai[k]/m; oR[k]=r*cr[k]-i*ci[k]; oI[k]=r*ci[k]+i*cr[k]; }
+  return [oR,oI]; }
+/* single-sided RMS amplitude spectrum, rectangular window — same convention as the LabVIEW FFT files (|X|·√2/N) */
+function fftFromRaw(R){
+  const names=R.names, N=R.data[names[0]].length, half=Math.floor(N/2), df=1/(N*R.dt);
+  const freq=Array.from({length:half},(_,k)=>k*df);
+  const amps=names.map(n=>{ const y=R.data[n], [xr,xi]=fftC(Float64Array.from(y.subarray(0,N)),new Float64Array(N)); const a=new Array(half);
+    for(let k=0;k<half;k++) a[k]=Math.hypot(xr[k],xi[k])*Math.SQRT2/N; return a; });
+  const u=(R.unit||"").replace("µ","u");
+  return {group:"FFT（由 RAW 計算）",freq,names,amps,unitGuess:VOLT[u]?u:null};
+}
+function parseCal(text){
+  let header="", rows=[];
+  for(const line of text.split(/\r?\n/)){ const s=line.trim(); if(!s) continue; const p=s.split(/[\s,;]+/), f=parseFloat(p[0]), v=parseFloat(p[1]);
+    if(isFinite(f)&&isFinite(v)) rows.push([f,v]); else if(!rows.length) header+=s+" "; }
+  if(rows.length<2) throw new Error("校正檔讀不到兩欄數值");
+  rows.sort((a,b)=>a[0]-b[0]);
+  const m=[]; for(const r of rows){ const l=m[m.length-1]; if(l&&Math.abs(l[0]-r[0])<1e-12){ l[1]=(l[1]*l[2]+r[1])/(l[2]+1); l[2]++; } else m.push([r[0],r[1],1]); }  // repeated frequency → average
+  return {f:m.map(r=>r[0]),s:m.map(r=>r[1]),header:header.trim(),unitGuess:guessSens(header)};
+}
+
+/* ================= math ================= */
+const isF = Number.isFinite;
+function sensAt(cal,f,unit){ // V/(m/s); NaN below range, flat above
+  const k=SENS[unit], F=cal.f, S=cal.s, n=F.length;
+  if(!(f>0)||f<F[0]) return NaN; if(f>=F[n-1]) return S[n-1]*k;
+  let lo=0,hi=n-1; while(hi-lo>1){const m=(lo+hi)>>1; if(F[m]<=f) lo=m; else hi=m;}
+  const t=(Math.log(f)-Math.log(F[lo]))/(Math.log(F[hi])-Math.log(F[lo]));
+  return Math.exp(Math.log(S[lo])+t*(Math.log(S[hi])-Math.log(S[lo])))*k;
+}
+function avgCols(rows,method){
+  const n=rows.length?rows[0].length:0, out=new Array(n).fill(NaN); if(!rows.length) return out;
+  for(let j=0;j<n;j++){ const v=rows.map(r=>r[j]).filter(isF); if(!v.length) continue;
+    if(method.startsWith("功率")) out[j]=Math.sqrt(v.reduce((s,x)=>s+x*x,0)/v.length);
+    else if(method==="中位數"){ v.sort((a,b)=>a-b); const m=v.length>>1; out[j]=v.length%2?v[m]:(v[m-1]+v[m])/2; }
+    else if(method.startsWith("最大")) out[j]=Math.max(...v);
+    else out[j]=v.reduce((s,x)=>s+x,0)/v.length; }
+  return out;
+}
+function fracOct(f,a,b){
+  const k=2**(1/(2*b)), n=f.length, cp=[0], cw=[0];
+  for(let i=0;i<n;i++){ cp.push(cp[i]+(isF(a[i])?a[i]*a[i]:0)); cw.push(cw[i]+(isF(a[i])?1:0)); }
+  const lb=x=>{let lo=0,hi=n; while(lo<hi){const m=(lo+hi)>>1; if(f[m]<x) lo=m+1; else hi=m;} return lo;};
+  const ub=x=>{let lo=0,hi=n; while(lo<hi){const m=(lo+hi)>>1; if(f[m]<=x) lo=m+1; else hi=m;} return lo;};
+  return a.map((v,i)=>{ if(!isF(v)) return NaN; const l=lb(f[i]/k), h=ub(f[i]*k), w=cw[h]-cw[l]; return w?Math.sqrt((cp[h]-cp[l])/w):NaN; });
+}
+function bands(fmin,fmax){ const n0=Math.floor(10*Math.log10(Math.max(fmin,1e-3))), n1=Math.ceil(10*Math.log10(fmax)), fc=[];
+  for(let n=n0;n<=n1;n++) fc.push(10**(n/10)); return fc; }
+function bandRms(f,a,fc){
+  const df=f[1]-f[0];
+  return fc.map(c=>{ const lo=c*10**(-1/20), hi=c*10**(1/20);
+    if(lo<f[0]-df/2||hi>f[f.length-1]+df/2) return NaN;
+    let s=0, any=false;
+    const i0=Math.max(0,Math.floor((lo-f[0])/df)-1), i1=Math.min(f.length-1,Math.ceil((hi-f[0])/df)+1);
+    for(let i=i0;i<=i1;i++){ const w=Math.max(0,Math.min(f[i]+df/2,hi)-Math.max(f[i]-df/2,lo))/df; if(w<=0) continue;
+      if(!isF(a[i])) return NaN; s+=w*a[i]*a[i]; any=true; }
+    return any?Math.sqrt(s):NaN; });
+}
+const NOM=[1,1.25,1.6,2,2.5,3.15,4,5,6.3,8];
+function nominal(fc){const e=Math.floor(Math.log10(fc)+1e-9), m=fc/10**e; let b=NOM[0]; for(const n of NOM) if(Math.abs(Math.log10(n/m))<Math.abs(Math.log10(b/m))) b=n; return +(b*10**e).toPrecision(3);}
+function convQ(f,v,q){ if(q==="位移") return f>0?v/(2*Math.PI*f):NaN; if(q==="加速度") return v*2*Math.PI*f; return v; }
+function vcRate(fc,vum){
+  let vmax=-Infinity,fw=null; fc.forEach((c,i)=>{ if(c>=0.99&&c<=80.8&&isF(vum[i])&&vum[i]>vmax){vmax=vum[i];fw=c;} });
+  if(fw===null) return null; let cls=null; for(const [n,l] of VC) if(vmax<=l) cls=n; return {cls:cls||"> VC-A",f:fw,v:vmax};
+}
+
+/* ================= state ================= */
+const st = {
+  ds:[], cur:-1,
+  an:{mode:"窄頻",q:"速度",unit:"自動",avg:"算術平均",sm:"無", split:false, bins:[{start:0,end:10,width:0.25},{start:10,end:20,width:0.5},{start:20,end:40,width:1},{start:40,end:100,width:2}], binMode:"RMS", vc:[],
+    vcStyle:{color:"#a0a0a0",ls:"--",lw:0.75},
+    custom:{on:true,name:"自訂準則",segs:[{f0:0,f1:10,v:0.25,color:"#ff0000",ls:"-",lw:1.5},{f0:10,f1:2000,v:1,color:"#ed7d31",ls:"-",lw:1.5}]}},
+  po:{tpl:"paper",title:"",yl:"",x0:"1",x1:"100",y0:"",y1:"",grid:true,leg:"lr",vc:false,vcLeg:false,legN:false,indiv:true,showSeq:false,ratio:false,ref:0},
+  view:"fft", leftTab:"data", shown:null, results:[], unit:"µm/s", rawIdx:0, rawMode:"all", rawQty:"v", rawBand:"all", rawZoom:null, rawHist:[], cursor:{on:false, fft:[10,50], raw:null}
+};
+function newDs(label){ return {label, color:PALETTE[st.ds.length%PALETTE.length], ls:"-", lw:1, visible:true, fft:null, cal:null, clips:null,
+  fftName:"", calName:"", rawName:"", raw:null, fftUnit:"auto", sensUnit:"auto", gain:1, sel:null, excl:true}; }
+const effFU = d=>d.fftUnit!=="auto"?d.fftUnit:(d.fft&&d.fft.unitGuess);
+const effSU = d=>d.sensUnit!=="auto"?d.sensUnit:(d.cal&&d.cal.unitGuess);
+const shortName = n=>{const m=/^Measure_(\d+)(?:\.0+)?$/.exec(n); return m?"#"+m[1]:n;};
+const isClip = ()=>false;
+/* velocity rows for the ticked sequences only, cached per data set (unticked rows are never converted) */
+let _fftId=0;
+function velRows(d){ const f=d.fft.freq, fu=effFU(d), su=effSU(d), key=`${d.fft._id||(d.fft._id=++_fftId)}|${d.calName}|${fu}|${su}|${d.gain}`;
+  if(!d._vr||d._vr.key!==key){ const S=f.map(x=>sensAt(d.cal,x,su)); d._vr={key,S,k:VOLT[fu]/(d.gain||1),rows:[]}; }
+  const C=d._vr, names=d.fft.names;
+  names.forEach((n,i)=>{ if(d.sel.has(n)&&!C.rows[i]){ const row=d.fft.amps[i]; C.rows[i]=row.map((a,j)=>f[j]>0?a*C.k/C.S[j]:NaN); } });
+  return C.rows; }
+/* the whole analysis of one data set, recomputed only when something that changes the numbers changes (not on rename / recolor) */
+function computeCached(d){ const key=[d.fft._id||(d.fft._id=++_fftId),[...d.sel].join(","),d.calName,effFU(d),effSU(d),d.gain,d.excl,st.an.mode,st.an.q,st.an.avg,st.an.sm].join("|");
+  if(!d._cc||d._cc.key!==key) d._cc={key,r:compute(d)};
+  return {...d._cc.r,d,label:d.label,color:d.color,ls:d.ls,lwm:d.lw||1}; }
+function used(d){ if(!d.fft) return []; return d.fft.names.filter(n=>d.sel.has(n)&&!(d.excl&&isClip(d,n))); }
+
+function velMatrix(d){
+  const f=d.fft.freq, k=VOLT[effFU(d)]/(d.gain||1), su=effSU(d);
+  const S=f.map(x=>sensAt(d.cal,x,su));
+  return d.fft.amps.map(row=>row.map((a,j)=>f[j]>0?a*k/S[j]:NaN));
+}
+function compute(d){
+  const f=d.fft.freq, names=d.fft.names, V=velRows(d), u=used(d), idx=u.map(n=>names.indexOf(n));
+  const fc=bands(Math.max(f[1],0.5),f[f.length-1]);
+  const vavg=avgCols(idx.map(i=>V[i]),st.an.avg);           // averaged spectrum of the ticked sequences
+  const bavg=idx.length?bandRms(f,vavg,fc):fc.map(()=>NaN);  // 1/3-octave bands of that averaged spectrum
+  const bm=idx.map(i=>bandRms(f,V[i],fc));
+  const vc=vcRate(fc,bavg.map(x=>x*1e6));
+  const q=st.an.q; let x,y,indiv=[];
+  if(st.an.mode==="窄頻"){
+    y=vavg.map((v,j)=>convQ(f[j],v,q)); var y0=y;
+    const ma=/^ma(\d+)$/.exec(st.an.sm); if(ma) y=movAvg(y,+ma[1]);
+    names.forEach((n,i)=>{ if(d.sel.has(n)) indiv.push({n,y:V[i].map((v,j)=>convQ(f[j],v,q)),clip:isClip(d,n)}); });
+    x=f;
+    if(ma) indiv.forEach(s2=>s2.y=movAvg(s2.y,+ma[1]));
+    if(st.an.sm==="分段"){ const B=binIndex(f); const ap=a=>B.map(b=>binVal(a,b.idx));
+      y=ap(y); y0=y; indiv.forEach(s2=>s2.y=ap(s2.y)); x=B.map(b=>b.f); }
+  } else {
+    y=bavg.map((v,j)=>convQ(fc[j],v,q)); x=fc;
+    bm.forEach((r,j)=>indiv.push({n:u[j],y:r.map((v,i)=>convQ(fc[i],v,q)),clip:false}));
+  }
+  return {d,label:d.label,color:d.color,ls:d.ls,lwm:d.lw||1,x,y,raw_y:(typeof y0!=="undefined"?y0:null),indiv,nUsed:u.length,nTot:names.length,vc,bands:{fc,v:bavg.map(x=>x*1e6)}};
+}
+/* piecewise binning: each band [start,end] is cut into bins of `width`; bin = lower < f <= upper
+   (first bin of the first band also includes f = start). Bin frequency = mean of its frequencies. */
+/* centred n-point moving average (NaN-aware; even n uses one more point on the left) */
+function movAvg(a,n){ const h=Math.floor(n/2), out=new Array(a.length);
+  for(let i=0;i<a.length;i++){ if(!isF(a[i])){ out[i]=NaN; continue; } let s=0,c=0; for(let j=i-h;j<i-h+n;j++){ if(j>=0&&j<a.length&&isF(a[j])){ s+=a[j]; c++; } } out[i]=s/c; } return out; }
+/* automatic bands: up to B = 40·df keep full resolution; then every octave the bin width doubles
+   (df = 0.25 Hz → 0–10 Hz ×0.25, 10–20 ×0.5, 20–40 ×1, 40–80 ×2, 80–160 ×4 …) — ≈ 2.5–5 % of f per bin */
+function autoBins(f){ const df=f[1]-f[0], fmax=f[f.length-1], B=40*df, out=[{start:0,end:Math.min(B,fmax),width:df}];
+  for(let k=0, lo=B; lo<fmax; k++, lo*=2) out.push({start:lo,end:Math.min(lo*2,fmax),width:df*2**(k+1)}); return out; }
+function binIndex(f){
+  const out=[], bands=autoBins(f);
+  bands.forEach((b,bi)=>{ for(let lo=b.start; lo<b.end-1e-12; lo+=b.width){ const hi=Math.min(lo+b.width,b.end), first=bi===0&&Math.abs(lo-b.start)<1e-12, idx=[];
+      for(let i=0;i<f.length;i++){ const x=f[i]; if(first?(x>=lo&&x<=hi):(x>lo&&x<=hi)) idx.push(i); }
+      if(idx.length) out.push({f:idx.reduce((s,i)=>s+f[i],0)/idx.length, idx, lo, hi}); } });
+  return out;
+}
+function binVal(a,idx){ const v=idx.map(i=>a[i]).filter(isF); if(!v.length) return NaN;
+  return Math.sqrt(v.reduce((s,x)=>s+x*x,0)/v.length); }
+function finalizeUnits(res){
+  const q=st.an.q; let unit=st.an.unit;
+  if(!(unit in QUANT[q])){
+    const vals=[]; res.forEach(r=>r.y.forEach((v,i)=>{ if(isF(v)&&v>0&&r.x[i]>=1&&r.x[i]<=100) vals.push(v); }));
+    unit=PREF[q];
+    if(vals.length){ vals.sort((a,b)=>a-b); const med=vals[vals.length>>1];
+      if(!(med*QUANT[q][unit]>=1e-2&&med*QUANT[q][unit]<1e4)){
+        const ch={"速度":["nm/s","µm/s","mm/s","m/s"],"位移":["nm","µm","mm","m"],"加速度":["µg","mg","g"]}[q];
+        unit=ch.reduce((b,u)=>Math.abs(Math.log10(med*QUANT[q][u])-1)<Math.abs(Math.log10(med*QUANT[q][b])-1)?u:b,ch[0]); } }
+  }
+  const k=QUANT[q][unit];
+  const wantIndiv=st.po.showSeq||st.an.split;   // individual curves are only scaled when something will draw them
+  res.forEach(r=>{ r.y=r.y.map(v=>v*k); if(r.raw_y) r.raw_y=r.raw_y.map(v=>v*k); r.indiv=wantIndiv?r.indiv.map(s=>({...s,y:s.y.map(v=>v*k)})):[]; });
+  return unit;
+}
+
+/* ================= plotting (SVG) ================= */
+const PFONT = "Arial, Helvetica, 'Microsoft JhengHei', sans-serif";
+function fmtTick(v){
+  if(v>=1e4||v<1e-3){ const e=Math.round(Math.log10(v)); return {sup:e}; }
+  if(v>=1) return {t:String(+v.toPrecision(6))}; return {t:String(+v.toPrecision(3))};
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function dashOf(ls,lw){ return ls==="--"?`${4*lw},${2.5*lw}`:ls===":"?`${1*lw},${1.8*lw}`:ls==="-."?`${4*lw},${1.6*lw},${1*lw},${1.6*lw}`:""; }
+
+/* W,H in user units; s = pt→unit scale; t = template */
+function drawSVG(res,W,H,s,t,interactive,seq=false){
+  const fs=t.font*s, lw=t.lw*s, fr=t.frame*s, q=st.an.q, po=st.po, bandsMode=st.an.mode!=="窄頻";
+  const Z=interactive?st.zoom:null;
+  const x0=Z?Z.x0:(parseFloat(po.x0)||1), x1=Z?Z.x1:(parseFloat(po.x1)||100);
+  // y range
+  let y0=Z?Z.y0:parseFloat(po.y0), y1=Z?Z.y1:parseFloat(po.y1);
+  if(!(y0>0&&y1>y0)){
+    let lo=Infinity,hi=-Infinity; res.forEach(r=>r.y.forEach((v,i)=>{ if(isF(v)&&v>0&&r.x[i]>=x0&&r.x[i]<=x1){ lo=Math.min(lo,v); hi=Math.max(hi,v);} }));
+    if(st.po.vc&&q==="速度"&&isF(lo)){ /* keep VC lines near data in view */ }
+    if(!isF(lo)){lo=0.01;hi=10;}
+    y0=y0>0?y0:10**Math.floor(Math.log10(lo)-0.05); y1=y1>y0?y1:10**Math.ceil(Math.log10(hi)+0.05);
+  }
+  const ratio=false;
+  const showTitle=po.title&&(t.title!==undefined);
+  const vcLab=po.vc&&st.an.vc.length;
+  // left margin sized to the widest y tick label so the axis title sits right next to the numbers
+  let tickW=0; for(let e=Math.floor(Math.log10(y0)); e<=Math.ceil(Math.log10(y1)); e++){ const v=10**e; if(v<y0*0.999||v>y1*1.001) continue; const f=fmtTick(v); tickW=Math.max(tickW, f.sup!==undefined?textW("10",fs)+textW(String(f.sup),fs*0.7):textW(f.t,fs)); }
+  const yg=Math.max(-(tickW/fs+0.2), isF(po.ylGap)?po.ylGap:0.55);   // Y-title distance from the tick numbers, in font heights (user adjustable)
+  const ml=tickW+fs*0.45+fs*Math.max(0.4,yg+1.35), mr=vcLab?fs*3.4:fs*1.1, mt=(showTitle?fs*2.4:((seq||interactive)&&!st._clean)?fs*1.7:fs*1.2), mb=fs*2.75;
+  const ph=H-mt-mb, mainH=ratio?ph*0.72:ph, gap=ratio?fs*0.8:0, rH=ratio?ph-mainH-gap:0;
+  const PD=t.pad||{l:0,r:0,t:0,b:0};
+  const L=ml+PD.l*s, R=W-mr-PD.r*s, T=mt+PD.t*s, B=T+mainH-PD.t*s-PD.b*s;
+  const lx=v=>L+(Math.log10(v)-Math.log10(x0))/(Math.log10(x1)-Math.log10(x0))*(R-L);
+  const ly=(v,a,b,top,bot)=>bot-(Math.log10(v)-Math.log10(a))/(Math.log10(b)-Math.log10(a))*(bot-top);
+  const my=v=>ly(v,y0,y1,T,B);
+  const ink="#111", gridC="#cfcfcf", minorC="#ececec", vcC="#7a7a7a";
+  let o=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${PFONT}" font-size="${fs}"><rect width="${W}" height="${H}" fill="#fff"/>`;
+  o+=`<defs><clipPath id="cpm${interactive?1:0}"><rect x="${L}" y="${T}" width="${R-L}" height="${B-T}"/></clipPath>`;
+  if(ratio) o+=`<clipPath id="cpr${interactive?1:0}"><rect x="${L}" y="${B+gap}" width="${R-L}" height="${rH}"/></clipPath>`;
+  o+=`</defs>`;
+  const tl=fs*0.42, tlm=fs*0.24;
+  function axisBox(top,bot,ya,yb,labelsX){
+    let g="";
+    // grid + ticks
+    const dx0=Math.floor(Math.log10(x0)), dx1=Math.ceil(Math.log10(x1));
+    for(let e=dx0;e<=dx1;e++) for(let m=1;m<10;m++){ const v=m*10**e; if(v<x0*0.999||v>x1*1.001) continue; const X=lx(v);
+      if(po.grid) g+=`<line x1="${X}" y1="${top}" x2="${X}" y2="${bot}" stroke="${m===1?gridC:minorC}" stroke-width="${fr*(m===1?0.6:0.4)}"/>`;
+      const L2=m===1?tl:tlm, dir=t.tickIn?-1:1;
+      g+=`<line x1="${X}" y1="${bot}" x2="${X}" y2="${bot+dir*L2}" stroke="${ink}" stroke-width="${fr}"/>`;
+      if(t.tickIn) g+=`<line x1="${X}" y1="${top}" x2="${X}" y2="${top+L2}" stroke="${ink}" stroke-width="${fr}"/>`;
+      if(labelsX&&(m===1||(Math.log10(x1/x0)<1.3&&[2,3,5].includes(m))||(Math.log10(x1/x0)<0.6&&m>1))){ const f=fmtTick(v); g+=f.sup!==undefined?`<text x="${X}" y="${bot+fs*1.45}" text-anchor="middle">10<tspan dy="${-fs*0.4}" font-size="${fs*0.7}">${f.sup}</tspan></text>`:`<text x="${X}" y="${bot+fs*1.45}" text-anchor="middle">${f.t}</text>`; } }
+    const ey0=Math.floor(Math.log10(ya)), ey1=Math.ceil(Math.log10(yb)), dense=(ey1-ey0)<=4;
+    for(let e=ey0;e<=ey1;e++) for(let m=1;m<10;m++){ const v=m*10**e; if(v<ya*0.999||v>yb*1.001) continue; if(m>1&&!dense) continue; const Y=ly(v,ya,yb,top,bot);
+      if(po.grid) g+=`<line x1="${L}" y1="${Y}" x2="${R}" y2="${Y}" stroke="${m===1?gridC:minorC}" stroke-width="${fr*(m===1?0.6:0.4)}"/>`;
+      const L2=m===1?tl:tlm, dir=t.tickIn?1:-1;
+      g+=`<line x1="${L}" y1="${Y}" x2="${L+dir*L2}" y2="${Y}" stroke="${ink}" stroke-width="${fr}"/>`;
+      if(t.tickIn) g+=`<line x1="${R}" y1="${Y}" x2="${R-L2}" y2="${Y}" stroke="${ink}" stroke-width="${fr}"/>`;
+      if(m===1||(Math.log10(yb/ya)<1.3&&[2,5].includes(m))){ const f=fmtTick(v); g+=f.sup!==undefined?`<text x="${L-fs*0.45}" y="${Y+fs*0.35}" text-anchor="end">10<tspan dy="${-fs*0.4}" font-size="${fs*0.7}">${f.sup}</tspan></text>`:`<text x="${L-fs*0.45}" y="${Y+fs*0.35}" text-anchor="end">${f.t}</text>`; } }
+    return g;
+  }
+  o+=axisBox(T,B,y0,y1,!ratio);
+  const path=(xs,ys,yf)=>{ let p="",pen=false; for(let i=0;i<xs.length;i++){ const x=xs[i],y=ys[i];
+      if(!(x>0&&isF(y)&&y>0)){pen=false;continue;} const X=lx(x), Y=yf(y); p+=(pen?"L":"M")+X.toFixed(2)+" "+Y.toFixed(2); pen=true; } return p; };
+  let pkMarks="", vcLabels="";
+  o+=`<g clip-path="url(#cpm${interactive?1:0})">`;
+  // VC lines
+  const k=QUANT[q][st.unit];
+  if(po.vc&&st.an.vc.length){
+    for(const [n,l] of VC){ if(!st.an.vc.includes(n)) continue;
+      const fx=[], fy=[]; for(let i=0;i<=60;i++){ const f=10**(Math.log10(x0)+i/60*(Math.log10(x1)-Math.log10(x0))); fx.push(f); fy.push(convQ(f,l*1e-6,q)*k); }
+      const vs=st.an.vcStyle, vw=t.lwVc*s*vs.lw;
+      o+=`<path d="${path(fx,fy,my)}" fill="none" stroke="${vs.color}" stroke-width="${vw}" stroke-dasharray="${dashOf(vs.ls,vw)}"/>`;
+      const yl=convQ(x1,l*1e-6,q)*k;
+      if(yl>y0&&yl<y1) vcLabels+=`<text x="${R+fs*0.35}" y="${my(yl)+fs*0.27}" fill="${st.an.vcStyle.color}" font-size="${fs*0.72}">${n.replace("VC-","")}</text>`; } }
+  // custom piecewise criterion: each segment has its own colour / style / width
+  const cu=st.an.custom;
+  if(cu.on){ let last=null;
+    for(const sg of cu.segs){ const a=Math.max(sg.f0,x0*0.999), b=Math.min(sg.f1,x1*1.001); if(!(b>a&&sg.v>0)) continue;
+      const fx=[], fy=[]; for(let i=0;i<=40;i++){ const f=10**(Math.log10(a)+i/40*(Math.log10(b)-Math.log10(a))); fx.push(f); fy.push(convQ(f,sg.v*1e-6,q)*k); }
+      const cw=t.lwVc*s*sg.lw;
+      o+=`<path d="${path(fx,fy,my)}" fill="none" stroke="${sg.color}" stroke-width="${cw}" stroke-dasharray="${dashOf(sg.ls,cw)}"/>`;
+      last=sg; } }
+  for(const r of res){
+    const rw=lw*r.lwm;
+    o+=`<path d="${path(r.x,r.y,my)}" fill="none" stroke="${r.color}" stroke-width="${rw}" stroke-linejoin="round" stroke-dasharray="${dashOf(r.ls,rw)}"/>`;
+    if(bandsMode) r.x.forEach((x,i)=>{ const y=r.y[i]; if(x>=x0&&x<=x1&&isF(y)&&y>0) o+=`<circle cx="${lx(x)}" cy="${my(y)}" r="${lw*1.2}" fill="${r.color}"/>`; });
+  }
+  o+=`</g><rect x="${L}" y="${T}" width="${R-L}" height="${B-T}" fill="none" stroke="${ink}" stroke-width="${fr}"/>`;
+  // ratio
+  if(ratio){
+    const ref=res[Math.min(po.ref,res.length-1)], top=B+gap, bot=top+rH;
+    let lo=Infinity,hi=-Infinity; const rs=res.filter(r=>r!==ref).map(r=>{ const y=r.y.map((v,i)=>v/ref.y[i]); y.forEach((v,i)=>{ if(isF(v)&&v>0&&r.x[i]>=x0&&r.x[i]<=x1){lo=Math.min(lo,v);hi=Math.max(hi,v);} }); return {r,y}; });
+    if(!isF(lo)){lo=0.1;hi=10;} lo=Math.min(lo,1); hi=Math.max(hi,1);
+    const ra=10**Math.floor(Math.log10(lo)), rb=10**Math.ceil(Math.log10(hi)+1e-9);
+    o+=axisBox(top,bot,ra,rb===ra?ra*10:rb,true);
+    const ry=v=>ly(v,ra,rb===ra?ra*10:rb,top,bot);
+    o+=`<g clip-path="url(#cpr${interactive?1:0})"><line x1="${L}" x2="${R}" y1="${ry(1)}" y2="${ry(1)}" stroke="${ink}" stroke-opacity=".6" stroke-width="${fr*0.8}"/>`;
+    for(const {r,y} of rs) o+=`<path d="${path(r.x,y,ry)}" fill="none" stroke="${r.color}" stroke-width="${lw*0.8}" stroke-dasharray="${dashOf(r.ls,lw*0.8)}"/>`;
+    o+=`</g><rect x="${L}" y="${top}" width="${R-L}" height="${rH}" fill="none" stroke="${ink}" stroke-width="${fr}"/>`;
+    o+=`<text transform="translate(${interactive?Math.round(fs*1.1):fs*1.1},${interactive?Math.round((top+bot)/2):(top+bot)/2}) rotate(-90)" text-anchor="middle">Ratio</text>`;
+  }
+  // labels
+  const bottom=ratio?B+gap+rH:B;
+  o+=`<text x="${(L+R)/2}" y="${bottom+fs*2.45}" text-anchor="middle">Frequency (Hz)</text>`;
+  const yl=po.yl||(bandsMode?`${QEN[q]}, 1/3-octave (${st.unit})`:`${QEN[q]} (${st.unit})`);
+  const ylx=L-tickW-fs*0.45-fs*yg;
+  o+=`<text transform="translate(${interactive?Math.round(ylx):ylx},${interactive?Math.round((T+B)/2):(T+B)/2}) rotate(-90)" text-anchor="middle" class="ylab" ${interactive?'font-weight="500"':""}>${esc(yl)}</text>`;
+  if(showTitle) o+=`<text x="${(L+R)/2}" y="${T-fs*0.9}" text-anchor="middle" font-size="${t.title*s}" font-weight="700">${esc(po.title)}</text>`;
+  // legend
+  if(res.length&&po.leg!=="none"){
+    const lf=t.legend*s, rowH=lf*1.45, items=(seq&&res.length>10?[]:res).map(r=>{ if(seq) return {r,txt:r.label}; let s2=r.label; const Tq=r.d&&r.d.fft?1/(r.d.fft.freq[1]-r.d.fft.freq[0]):0; const ex=po.legN?[Tq?`${r.nUsed}×${+Tq.toPrecision(3)} s`:`n=${r.nUsed}`]:[]; if(po.vcLeg&&r.vc) ex.push(r.vc.cls); return {r,txt:ex.length?`${s2} (${ex.join(", ")})`:s2}; });
+    if(items.length){ const tw=Math.max(...items.map(i=>textW(i.txt,lf))), bw=lf*2.6+tw+lf*0.8, bh=rowH*items.length+lf*0.5;
+    const pad=fs*0.5; let bx=po.leg[1]==="r"?R-bw-pad:L+pad, by=po.leg[0]==="u"?T+pad:B-bh-pad;
+    o+=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${lf*0.3}" fill="#fff" fill-opacity=".9" stroke="#cfcfcf" stroke-width="${fr*0.8}"/>`;
+    items.forEach((it,i)=>{ const yy=by+lf*0.25+rowH*(i+0.5);
+      o+=`<line x1="${bx+lf*0.5}" x2="${bx+lf*2.1}" y1="${yy}" y2="${yy}" stroke="${it.r.color}" stroke-width="${lw*it.r.lwm}" stroke-dasharray="${dashOf(it.r.ls,lw*it.r.lwm)}"/>`;
+      o+=`<text x="${bx+lf*2.6}" y="${yy+lf*0.35}" font-size="${lf}">${esc(it.txt)}</text>`; }); }
+  }
+  o+=pkMarks+vcLabels;
+  if(st._clean){} else if(seq&&cur()) o+=`<text x="${L}" y="${T-fs*0.4}" font-size="${fs*0.85}" font-weight="700" fill="#1c2024">${esc(cur().label)}</text>`;
+  else if(interactive&&res.length) o+=`<text x="${L}" y="${T-fs*0.4}" font-size="${fs*0.85}" fill="#59616b">${res[0].split?`圖上共 <tspan font-weight="700" fill="#1c2024">${res.length}</tspan> 條序列（各自平滑，未平均）`:`圖上共 <tspan font-weight="700" fill="#1c2024">${res.length}</tspan> 組分析結果（每組 = 該組勾選序列的平均）`}</text>`;
+  if(vcLabels) o+=`<text x="${R+fs*0.35}" y="${T-fs*0.35}" fill="${st.an.vcStyle.color}" font-size="${fs*0.72}">VC</text>`;
+  o+="</svg>";
+  return {svg:o, geom:{L,R,T,B,x0,x1,y0,y1,fs,toX:lx,fromX:X=>10**(Math.log10(x0)+(X-L)/(R-L)*(Math.log10(x1)-Math.log10(x0)))}};
+}
+const _cv=document.createElement("canvas").getContext("2d");
+function textW(s,size){ _cv.font=`${size}px ${PFONT}`; return _cv.measureText(s).width; }
+
+/* ================= UI ================= */
+function cur(){ return st.ds[st.cur]||null; }
+function setStatus(m){ $("#status").textContent=m||""; }
+
+function renderDsList(){
+  const el=$("#dslist"); el.innerHTML="";
+  st.ds.forEach((d,i)=>{ const r=document.createElement("div"); r.className="ds"+(i===st.cur?" sel":"");
+    r.innerHTML=`<input type="checkbox" ${d.visible?"checked":""} aria-label="顯示"><span class="sw" style="background:${d.color}"></span><span class="nm"></span>`;
+    r.querySelector(".nm").textContent=d.label;
+    r.querySelector("input").addEventListener("click",e=>{ e.stopPropagation(); d.visible=e.target.checked; refresh(); });
+    r.addEventListener("click",()=>{ st.cur=i; renderAll(); });
+    el.appendChild(r); });
+  if(!st.ds.length) el.innerHTML=`<div class="hint" style="padding:6px 2px">還沒有 FFT 檔</div>`;
+
+}
+function renderDetail(){
+  const d=cur(), on=!!d;
+  for(const id of ["#detail","#meascard"]) $(id).hidden=!on; $("#btnDel").disabled=!on;   // nothing loaded: no stale name, color or file left on screen
+  renderRawCard();
+  if(!d){ $("#chips").innerHTML=""; $("#unitLine").textContent=""; $("#measNote").textContent=""; return; }
+  $("#dsLabel").value=d.label; $("#dsColor").value=d.color; $("#colorSw").style.background=d.color; $("#dsLs").value=d.ls; $("#dsLw").value=String(d.lw||1);
+  const sf=(id,n)=>{ const e=$(id); e.textContent=n||"未選擇"; e.classList.toggle("none",!n); e.title=n||""; };
+  sf("#fFft",d.fftName);
+  fillCalSel(d);
+  $("#uFft").value=d.fftUnit; $("#uSens").value=d.sensUnit; $("#uGain").value=d.gain;
+  // unit line
+  const u=$("#unitLine"); let ok=false, msg="";
+  if(!d.fft||!d.cal) msg="請加入"+(!d.fft?" FFT 檔":"")+(!d.cal?" 校正檔":"");
+  else { const fu=effFU(d), su=effSU(d);
+    if(!fu||!su) msg="無法自動判讀單位，請按「單位設定」指定";
+    else { const f=d.fft.freq, kk=VOLT[fu]/(d.gain||1), vals=[];   // sanity check on a few sequences only (fast with hundreds of them)
+      const rows=d.fft.amps.filter((_,i)=>i%Math.max(1,Math.floor(d.fft.amps.length/5))===0).slice(0,5);
+      f.forEach((x,j)=>{ if(x>=5&&x<=50){ const S=sensAt(d.cal,x,su); rows.forEach(r=>{ const v=r[j]*kk/S; if(isF(v)) vals.push(v); }); } });
+      vals.sort((a,b)=>a-b); const med=vals.length?vals[vals.length>>1]*1e6:NaN;
+      if(isF(med)&&(med>1e4||med<1e-5)) msg=`數值看起來不對（約 ${med.toPrecision(2)} µm/s），請檢查單位設定`;
+      else { ok=true; msg=`單位：${fu.replace("uV","µV")} ÷ ${su}`+(d.gain!==1?` ÷ 增益 ${d.gain}`:""); } } }
+  u.textContent=(ok?"✓  ":"⚠  ")+msg; u.className="unit grow "+(ok?"ok":"warn");
+  if(!ok&&d.fft&&d.cal) setAdv(true);
+  // chips
+  const c=$("#chips"); c.innerHTML=""; let nclip=0;
+  if(d.fft) d.fft.names.forEach(n=>{ const clip=isClip(d,n); nclip+=clip?1:0; const on=d.sel.has(n);
+    const l=document.createElement("label"); l.className="chip"+(clip?" clip":"")+(!on||(clip&&d.excl)?" off":"");
+    l.title=clip?`RAW 有 ${d.clips[n]} 個點貼在 ADC 上下限`+(d.excl?"，已排除":""):"";
+    const showDot=on&&st.po.showSeq!==false;
+    l.innerHTML=`<input type="checkbox" ${on?"checked":""}><span>${shortName(n)}</span>${showDot?`<span class="cdot" role="button" title="換顏色" style="background:${seqColor(d,n)}"></span><input type="color" hidden>`:""}`;
+    const dot=l.querySelector(".cdot");
+    if(dot) dot.addEventListener("click",e=>{ e.preventDefault(); e.stopPropagation(); const inp=l.querySelector("input[type=color]");
+      inp.oninput=()=>{ (d.seqColors??={})[n]=inp.value; renderDetail(); refresh(); };
+      openPal(dot,seqColor(d,n),inp,c=>{ (d.seqColors??={})[n]=c; renderDetail(); refresh(); }); });
+    l.querySelector("input").addEventListener("change",e=>{ e.target.checked?d.sel.add(n):d.sel.delete(n); renderDetail(); refresh(); });
+    c.appendChild(l); });
+  let note="";
+  if(d.fft){ const n=used(d).length, T=1/(d.fft.freq[1]-d.fft.freq[0]), fmt=x=>+x.toPrecision(4);
+    note=`${n} × ${fmt(T)} s = ${fmt(n*T)} s`; }
+  $("#measNote").textContent=note;
+}
+function setFftSrc(d,v){
+  if((d.fftSrc||"file")===v) return;
+  if(v==="raw"){ if(!d.raw) return; d.fftRaw=d.fftRaw||fftFromRaw(d.raw); d.fft=d.fftRaw; }
+  else { if(!d.fftFile) return; d.fft=d.fftFile; }
+  d.fftSrc=v; d.fftUnit="auto";                       // units differ (FFT file µV, RAW mV): re-detect
+  d.sel=new Set([...d.sel].filter(n=>d.fft.names.includes(n)));
+  renderAll();
+}
+let _nt=null; function notice(m){ st.notice=m; clearTimeout(_nt); _nt=setTimeout(()=>{ st.notice=""; refresh(); },8000); }
+function setAdv(open){ $("#adv").hidden=!open; $("#btnAdv").setAttribute("aria-expanded",String(open)); }
+function renderAll(){ renderDsList(); renderDetail(); refresh(); }
+
+/* several averages from one file: each group is its own data set sharing the same FFT / RAW data */
+function selSummary(d){ const ns=[...(d.sel||[])].map(n=>parseInt(String(shortName(n)).replace(/\D+/g,""))).filter(isF).sort((a,b)=>a-b);
+  if(!ns.length) return "（未選）"; const out=[]; let a=ns[0], b=a;
+  for(const v of ns.slice(1).concat([NaN])){ if(v===b+1){ b=v; continue; } out.push(a===b?`#${a}`:`#${a}–#${b}`); a=b=v; }
+  return out.length>3?out.slice(0,3).join(", ")+" …":out.join(", "); }
+function syncAutoLabels(){ let ch=false; for(const d of st.ds) if(d.base&&d.autoLabel){ const l=`${d.base} ${selSummary(d)}`; if(l!==d.label){ d.label=l; ch=true; } }
+  if(ch){ renderDsList(); const d=cur(); if(d&&document.activeElement!==$("#dsLabel")) $("#dsLabel").value=d.label; } }
+function addGroup(){ const d=cur(); if(!d||!d.fft) return;
+  if(!d.base){ d.base=d.label; d.autoLabel=true; }
+  const used=new Set(st.ds.map(x=>x.color)), pref=["#1f63c6","#2ca02c","#ff7f0e","#7b3fa0","#8c564b","#6e6e6e","#000000","#d62728"], col=pref.find(c=>!used.has(c))||pref[st.ds.length%pref.length];
+  const g={...d, color:col, sel:new Set(), seqColors:d.seqColors?{...d.seqColors}:d.seqColors, visible:true, autoLabel:true};
+  st.ds.splice(st.cur+1,0,g); st.cur=st.cur+1; renderAll(); }
+function refresh(){ syncAutoLabels(); scheduleSave();
+  const msgs=[]; const res=[];
+  for(const d of st.ds){ if(!d.visible) continue;
+    if(!d.fft){msgs.push(`「${d.label}」缺 FFT 檔`);continue;} if(!d.cal){msgs.push(`「${d.label}」缺校正檔`);continue;}
+    if(!effFU(d)||!effSU(d)){msgs.push(`「${d.label}」單位無法判讀`);continue;}
+    const r=computeCached(d); if(!r.nUsed) msgs.push(`「${d.label}」還沒勾選序列`); res.push(r); }
+  st.unit=finalizeUnits(res); st.results=res;
+  setStatus([st.notice||"",...msgs.map(m=>"⚠ "+m)].filter(Boolean).join("　"));
+  // table
+  $("#resBody").innerHTML=res.map(r=>{ const c=r.vc?r.vc.cls:"—", good=r.vc&&["VC-D","VC-E","VC-F","VC-G"].includes(c), bad=c==="> VC-A";
+    return `<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${r.color};margin-right:8px"></span>${esc(r.label)}</td><td>${r.nUsed} / ${r.nTot}</td><td><span class="pill ${good?"good":bad?"bad":""}" title="${r.vc?`卡在 ${nominal(r.vc.f)} Hz 頻帶：${r.vc.v.toPrecision(3)} µm/s（1/3 倍頻程，1–80 Hz 內最大）`:""}">${c}</span></td>${custCell(r)}<td>${(()=>{ const pk=peakOf(r); return pk?`${st.an.mode==="窄頻"?(pk.f>=10?pk.f.toFixed(1):pk.f.toFixed(2)):nominal(pk.f)} Hz　${fmtV(pk.v)} ${st.unit}`:"—"; })()}</td></tr>`; }).join("")
+    || `<tr><td colspan="5" class="hint">—</td></tr>`;
+  $("#custTh").hidden=!st.an.custom.on;
+  draw();
+}
+function peakOf(r){ const xa=parseFloat(st.po.x0)||1, xb=parseFloat(st.po.x1)||100; let pk=null;
+  r.x.forEach((f,i)=>{ const v=r.y[i]; if(f>=xa&&f<=xb&&isF(v)&&(!pk||v>pk.v)) pk={f,v}; }); return pk; }
+function hsl2hex(h,s,l){ s/=100; l/=100; const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l), f=n=>l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));
+  return "#"+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,"0")).join(""); }
+function seqColor(d,n){ if(d.seqColors&&d.seqColors[n]) return d.seqColors[n];
+  const names=d.fft?d.fft.names:[n], i=Math.max(0,names.indexOf(n)), m=Math.max(names.length,1);
+  return hsl2hex(Math.round(i*360/m+200)%360,70,52); }
+/* curves for the 資料 tab: the ticked sequences of the current data set */
+/* 分析頁「各序列分開畫」：每條勾選的序列各自平滑後當成一條線 */
+function anaCurves(){ if(!st.an.split) return st.results.filter(r=>r.nUsed>0); const multi=st.results.filter(r=>r.nUsed).length>1;
+  return st.results.flatMap(r=>r.indiv.map(s2=>({d:r.d,label:(multi?r.label+" ":"")+shortName(s2.n),color:seqColor(r.d,s2.n),ls:r.ls,lwm:r.lwm,x:r.x,y:s2.y,raw_y:null,indiv:[],vc:null,nUsed:1,nTot:r.nTot,split:true}))); }
+function seqCurves(){ const d=cur(); if(!d) return []; const r=st.results.find(x=>x.d===d);
+  const others=st.po.indiv?st.results.filter(x=>x.nUsed&&x.d!==d):[];   // the other shown groups' averages, so groups can be compared here too
+  const out=(!r||st.po.showSeq===false?[]:r.indiv).map(s2=>({d,label:shortName(s2.n),color:seqColor(d,s2.n),ls:"-",lwm:d.lw||1,x:r.x,y:s2.y,indiv:[],vc:null,isSeq:true}));
+  for(const o of others) out.push({...o,indiv:[]});
+  if(r&&st.po.indiv&&r.nUsed) out.push(others.length?{...r,indiv:[]}:{...r,label:"平均",color:"#000000",indiv:[]});   // current group on top
+  return out; }
+function custCell(r){
+  const cu=st.an.custom; if(!cu.on) return "";
+  const k=QUANT[st.an.q][st.unit]; let worst=null;
+  const xa=parseFloat(st.po.x0)||1, xb=parseFloat(st.po.x1)||100;
+  r.x.forEach((f,i)=>{ const y=r.y[i]; if(!isF(y)||f<xa||f>xb) return; const sg=cu.segs.find(g=>f>=g.f0&&f<g.f1)||(cu.segs.length&&f===cu.segs[cu.segs.length-1].f1?cu.segs[cu.segs.length-1]:null); if(!sg||!(sg.v>0)) return;
+    const lim=convQ(f,sg.v*1e-6,st.an.q)*k, ratio=y/lim; if(!worst||ratio>worst.ratio) worst={ratio,f}; });
+  if(!worst) return `<td>—</td>`;
+  const ff=st.an.mode==="窄頻"?(worst.f>=10?worst.f.toFixed(1):worst.f.toFixed(2)):nominal(worst.f);
+  return worst.ratio<=1?`<td><span class="pill good">通過</span>　最高 ${(worst.ratio*100).toFixed(0)}%</td>`:`<td><span class="pill bad">超過</span>　${worst.ratio.toFixed(1)} 倍 @ ${ff} Hz</td>`;
+}
+const TPL_DEF=JSON.parse(JSON.stringify(TPL));
+/* ---------- keep work between visits ----------
+   settings (small) → localStorage, read right here so every control starts from them;
+   data files + groups → IndexedDB, offered back when the page opens */
+const LS_KEY="fvs.settings.v1";
+(function loadSettings(){ try{ const S=JSON.parse(localStorage.getItem(LS_KEY)||"null"); if(!S) return;
+  if(S.an){ const {custom,vcStyle,...rest}=S.an; Object.assign(st.an,rest); if(custom) st.an.custom=custom; if(vcStyle) st.an.vcStyle=vcStyle; st.an.split=false; }
+  if(S.po){ Object.assign(st.po,S.po); st.po.showSeq=false; }
+  if(S.tpl) for(const k of Object.keys(TPL)) if(S.tpl[k]) Object.assign(TPL[k],S.tpl[k]);
+}catch(e){} })();
+function saveSettings(){ try{ localStorage.setItem(LS_KEY,JSON.stringify({an:st.an,po:st.po,tpl:TPL})); }catch(e){} }
+const IDB={ db:null,
+  open(){ if(this.db) return Promise.resolve(this.db); return new Promise((ok,no)=>{ try{ const r=indexedDB.open("fvs",1);
+    r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>ok(this.db=r.result); r.onerror=()=>no(r.error); }catch(e){ no(e); } }); },
+  async op(mode,fn){ const db=await this.open(); return new Promise((ok,no)=>{ const tx=db.transaction("kv",mode), s=tx.objectStore("kv"); let out; const r=fn(s); if(r) r.onsuccess=()=>{ out=r.result; };
+    tx.oncomplete=()=>ok(out); tx.onerror=tx.onabort=()=>no(tx.error); }); },
+  get(k){ return this.op("readonly",s=>s.get(k)); }, put(k,v){ return this.op("readwrite",s=>s.put(v,k)); },
+  del(k){ return this.op("readwrite",s=>s.delete(k)); }, keys(){ return this.op("readonly",s=>s.getAllKeys()); } };
+let saveFail=false, restoring=true, _svT=null;   // nothing is saved until the "restore last session?" question is answered
+async function persistFiles(files){ for(const f of files){ try{ await IDB.put("file:"+f.name,f); }catch(e){ saveFail=true; } } }
+function sessionOf(){ return {v:1,cur:st.cur,ds:st.ds.map(d=>({fftBase:d.fftDerived?"":d.fftBase,rawName:d.rawName||"",derived:!!d.fftDerived,label:d.label,color:d.color,ls:d.ls,lw:d.lw,
+  visible:d.visible,sel:[...(d.sel||[])],calName:d.calName,fftUnit:d.fftUnit,sensUnit:d.sensUnit,gain:d.gain,base:d.base||"",autoLabel:!!d.autoLabel,seqColors:d.seqColors||null}))}; }
+function scheduleSave(){ saveSettings(); if(restoring) return; clearTimeout(_svT); _svT=setTimeout(async()=>{ try{
+  const S=sessionOf(); await IDB.put("session",S);
+  const keep=new Set(); S.ds.forEach(d=>{ if(d.fftBase) keep.add("file:"+d.fftBase); if(d.rawName) keep.add("file:"+d.rawName); if(d.calName&&!(window.CAL_PRESETS||[]).some(p=>p.name===d.calName)) keep.add("file:"+d.calName); });
+  for(const k of await IDB.keys()) if(String(k).startsWith("file:")&&!keep.has(k)) await IDB.del(k);
+}catch(e){ saveFail=true; } },800); }
+addEventListener("beforeunload",e=>{ if(st.ds.length&&saveFail){ e.preventDefault(); e.returnValue=""; } });   // only asks when the browser could not keep the data
+async function offerRestore(){ try{ await offerRestore2(); }finally{ restoring=false; scheduleSave(); } }
+async function offerRestore2(){ let S=null; try{ S=await IDB.get("session"); }catch(e){ return; }
+  if(!S||!S.ds||!S.ds.length) return;
+  const k=await ask(`<b>上次的資料還在</b>（${S.ds.length} 組：${S.ds.slice(0,3).map(d=>esc(d.label)).join("、")}${S.ds.length>3?"…":""}）<br>要接著上次的進度嗎？`,[{label:"重新開始"},{label:"恢復上次的資料",primary:true}]);
+  if(k===0){ try{ for(const key of await IDB.keys()) await IDB.del(key); }catch(e){} return; }
+  try{ const names=new Set(); S.ds.forEach(d=>{ if(d.fftBase) names.add(d.fftBase); if(d.rawName) names.add(d.rawName); if(d.calName) names.add(d.calName); });
+    const files=[]; for(const n of names){ try{ const f=await IDB.get("file:"+n); if(f) files.push(f instanceof File?f:new File([f],n)); }catch(e){} }
+    await addFiles(files);
+    const bases=st.ds.slice(), used=new Set(), out=[];
+    for(const s of S.ds){ const b=bases.find(x=>s.derived?(x.fftDerived&&x.rawName===s.rawName):(!x.fftDerived&&x.fftBase===s.fftBase)); if(!b) continue;
+      const d=used.has(b)?{...b,_cc:null,_vr:null}:b; used.add(b);
+      Object.assign(d,{label:s.label,color:s.color,ls:s.ls,lw:s.lw,visible:s.visible,fftUnit:s.fftUnit,sensUnit:s.sensUnit,gain:s.gain,base:s.base||undefined,autoLabel:s.autoLabel,seqColors:s.seqColors||undefined});
+      d.sel=new Set(s.sel.filter(n=>d.fft.names.includes(n)));
+      const ce=CAL_LIB.find(e=>e.name===s.calName); if(ce){ d.cal=ce.cal; d.calName=ce.name; }
+      if(s.rawName){ const rb=bases.find(x=>x.rawName===s.rawName&&x.raw); if(rb){ d.raw=rb.raw; d.rawName=rb.rawName; d.clips=rb.clips; } } else if(!s.derived){ d.raw=null; d.rawName=""; }
+      out.push(d); }
+    st.ds=out; st.cur=Math.max(0,Math.min(S.cur,out.length-1)); if(!out.length) st.cur=-1;
+    const miss=S.ds.length-out.length; if(miss) notice(`有 ${miss} 組的檔案找不到，沒有恢復`);
+  }catch(e){ notice("恢復失敗："+e.message); } renderAll(); }
+function tplNow(){ return TPL[st.po.tpl]; }
+let geom=null, geomOut=null;
+function draw(){
+  const t=tplNow();
+  const px=[Math.round(t.w/2.54*t.dpi),Math.round(t.h/2.54*t.dpi)];
+  $("#tplInfo").textContent=`輸出 ${px[0]} × ${px[1]} px`;
+  for(const [id,k] of [["#tW","w"],["#tH","h"],["#tF","font"],["#tD","dpi"],["#tL","lw"]]) if(document.activeElement!==$(id)) $(id).value=t[k];
+  if(st.view==="out"){
+    const pt=28.3465, W=t.w*pt, H=t.h*pt, r=drawSVG(anaCurves().filter(x=>x.nUsed>0),W,H,1,t,false), box=$("#preview"); geomOut=r.geom;
+    const sc=st.figDrag?st.figDrag.sc:Math.min((box.clientWidth*0.92)/W,(box.clientHeight*0.9)/H);
+    const g=r.geom, ax=`<div class="axbox" style="left:${g.L*sc}px;top:${g.T*sc}px;width:${(g.R-g.L)*sc}px;height:${(g.B-g.T)*sc}px"><span class="ah l" data-a="l"></span><span class="ah r" data-a="r"></span><span class="ah t" data-a="t"></span><span class="ah b" data-a="b"></span></div>`;
+    box.innerHTML=`<div class="figbox">${r.svg}${ax}<span class="rh e" data-h="e"></span><span class="rh s" data-h="s"></span><span class="rh se" data-h="se"></span><span class="figsz">${t.w.toFixed(1)} × ${t.h.toFixed(1)} cm</span></div>`;
+    const svg=box.querySelector("svg"); svg.setAttribute("width",W*sc); svg.setAttribute("height",H*sc); st.prevSc=sc;
+    return;
+  }
+  const box=$("#live"), W=box.clientWidth, H=box.clientHeight; if(W<50) return;
+  const seq=st.leftTab==="data"; st.shown=seq?seqCurves():anaCurves();
+  const r=st.view==="raw"?drawRaw(cur(),W,H):drawSVG(st.shown,W,H,1.33,TPL.screen,true,seq);
+  box.querySelectorAll("svg:not(#ovl)").forEach(e=>e.remove()); box.insertAdjacentHTML("afterbegin",r.svg); geom=r.geom;
+  drawCursors();
+}
+
+/* ---------- RAW view ---------- */
+function niceTicks(a,b,n){ const span=b-a, step0=span/n, mag=10**Math.floor(Math.log10(step0)), step=[1,2,2.5,5,10].map(m=>m*mag).find(x=>span/x<=n)||10*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+step*1e-9; v+=step) out.push(+v.toPrecision(10)); return out; }
+/* RAW waveform → (band-limited) voltage or velocity:
+   FFT → keep the chosen band → (velocity) divide each frequency by gain·S(f) → inverse FFT.
+   Below the calibration range S(f) is unknown, so those frequencies are removed. */
+function procKey(d){ return `${st.rawQty}|${st.rawBand}|${d.calName}|${d.gain}|${effSU(d)}`; }
+function procErr(d){ if(st.rawQty!=="v") return ""; if(!d.cal) return "要換成速度需要校正檔"; if(!effSU(d)) return "校正檔的單位無法判讀"; const u=(d.raw.unit||"").replace("µ","u"); if(!VOLT[u]) return "RAW 的電壓單位無法判讀"; return ""; }
+function seriesOf(d,n){
+  const R=d.raw, y=R.data[n];
+  if(st.rawQty==="V"&&st.rawBand==="all") return y;
+  if(procErr(d)) return y;
+  const key=procKey(d); if(R._pk!==key){ R._pk=key; R._pc={}; R._cat2=null; }
+  if(R._pc[n]) return R._pc[n];
+  const N=y.length, df=1/(N*R.dt), [lo,hi]=st.rawBand==="all"?[0,Infinity]:st.rawBand.split("-").map(Number);
+  const vel=st.rawQty==="v", su=effSU(d), vf=VOLT[(R.unit||"").replace("µ","u")]||1, g=d.gain||1;
+  const [xr,xi]=fftC(Float64Array.from(y),new Float64Array(N));
+  for(let k=0;k<N;k++){ const fk=Math.min(k,N-k)*df; let h=(fk>=lo&&fk<=hi)?1:0;
+    if(h&&vel){ const S=sensAt(d.cal,fk,su); h=isF(S)&&S>0?vf*1e6/(g*S):0; }
+    xr[k]*=h; xi[k]*=-h; }                                  // multiply, then conjugate for the inverse transform
+  const [zr]=fftC(xr,xi), out=new Float32Array(N); for(let k=0;k<N;k++) out[k]=zr[k]/N;
+  return (R._pc[n]=out);
+}
+function rawUnit(d){ return st.rawQty==="v"&&!procErr(d)?"µm/s":(d.raw.unit||"V"); }
+function rawOf(d,proc=true){ if(!d||!d.raw) return null; const R=d.raw; const i=Math.min(st.rawIdx,R.names.length-1), n=R.names[i]; return {R,name:n,y:proc?seriesOf(d,n):R.data[n]}; }
+function rawCat(d){
+  if(!d||!d.raw) return null; const R=d.raw, key=procKey(d), proc=!(st.rawQty==="V"&&st.rawBand==="all")&&!procErr(d);
+  if(!R._cat||R._catKey!==key){ const N=R.data[R.names[0]].length, m=R.names.length, c=new Float32Array(N*m);
+    R._cat={y:c,N}; R._catKey=key;
+    if(!proc||m*N<=2e6) R.names.forEach((n,k)=>c.set(seriesOf(d,n).subarray(0,N),k*N));
+    else { c.fill(NaN); fillCatAsync(d,key); } }   // many sequences: convert in the background, nearest the view first
+  return {R,name:`連續 ${R.names.length} 條`,y:R._cat.y,segN:R._cat.N};
+}
+async function fillCatAsync(d,key){
+  const R=d.raw, N=R._cat.N, m=R.names.length, c=R._cat.y;
+  const mid=st.rawZoom?(st.rawZoom[0]+st.rawZoom[1])/2-R.t0:0, k0=Math.max(0,Math.min(m-1,Math.floor(mid/(N*R.dt))));
+  const order=[...Array(m).keys()].sort((a,b)=>Math.abs(a-k0)-Math.abs(b-k0));
+  let done=0, t=performance.now(), lastDraw=t;
+  for(const k of order){
+    if(R._catKey!==key||d.raw!==R) return;                // settings changed: a newer job takes over
+    c.set(seriesOf(d,R.names[k]).subarray(0,N),k*N); done++;
+    if(performance.now()-t>120||done===m){ setStatus(done<m?`換算中：${done} / ${m} 條`:"");
+      if(st.view==="raw"&&cur()===d&&(done===m||performance.now()-lastDraw>1500)){ draw(); lastDraw=performance.now(); } await pause(0); t=performance.now(); }
+  }
+  refresh();
+}
+function drawRaw(d,W,H,clean=false){
+  const fs=11*1.33, fr=1, ink="#111", cat=st.rawMode==="all";
+  const ro=cat?rawCat(d):rawOf(d);
+  const L=fs*4.6, R=W-fs*1.1, T=clean?fs*0.8:fs*2.4, B=H-fs*3.2;
+  let o=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${PFONT}" font-size="${fs}"><rect width="${W}" height="${H}" fill="#fff"/>`;
+  if(!ro){ o+=`<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#8b939c">這一組還沒有 RAW 檔，到左邊「RAW 時域訊號」加入</text></svg>`; return {svg:o,geom:null}; }
+  const {R:Rw,name,y:yAll}=ro, N=yAll.length, T0=Rw.t0, T1=Rw.t0+Rw.dt*(N-1);
+  let ia=0, ib=N-1; if(st.rawZoom){ ia=Math.max(0,Math.floor((st.rawZoom[0]-T0)/Rw.dt)); ib=Math.min(N-1,Math.ceil((st.rawZoom[1]-T0)/Rw.dt)); if(ib-ia<4){ia=0;ib=N-1;} }
+  const y=yAll.subarray(ia,ib+1), n=y.length, t0=T0+ia*Rw.dt, t1=T0+ib*Rw.dt;
+  let lo=Infinity,hi=-Infinity; for(const v of yAll){ if(v<lo)lo=v; if(v>hi)hi=v; } if(!(hi>=lo)){ lo=-1; hi=1; }
+  const pad=(hi-lo)*0.12||1; const yk=rawYKey(d), yz=st.rawY&&st.rawY.k===yk?st.rawY:null; const ya=yz?yz.y0:lo-pad, yb=yz?yz.y1:hi+pad;
+  const X=v=>L+(v-t0)/(t1-t0)*(R-L), Y=v=>B-(v-ya)/(yb-ya)*(B-T);
+  for(const v of niceTicks(t0,t1,8)){ const x=X(v); o+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${B}" stroke="#e6e6e6"/><line x1="${x}" x2="${x}" y1="${B}" y2="${B+5}" stroke="${ink}"/><text x="${x}" y="${B+fs*1.45}" text-anchor="middle">${+v.toPrecision(6)}</text>`; }
+  let rw=0; for(const v of niceTicks(ya,yb,6)) rw=Math.max(rw,textW(String(+v.toPrecision(6)),fs));
+  for(const v of niceTicks(ya,yb,6)){ const yy=Y(v); o+=`<line x1="${L}" x2="${R}" y1="${yy}" y2="${yy}" stroke="${v===0?"#bdbdbd":"#e6e6e6"}"/><line x1="${L-5}" x2="${L}" y1="${yy}" y2="${yy}" stroke="${ink}"/><text x="${L-fs*0.45}" y="${yy+fs*0.35}" text-anchor="end">${+v.toPrecision(6)}</text>`; }
+  // min/max decimation per pixel
+  const segN=ro.segN||Infinity, segOn=k=>!cat||!d.sel||d.sel.has(Rw.names[k]);
+  // segment separators + labels (continuous mode)
+  if(cat){ const m=Rw.names.length;
+    for(let k=0;k<m;k++){ const ts=T0+k*segN*Rw.dt, te=T0+((k+1)*segN-1)*Rw.dt; if(te<t0||ts>t1) continue;
+      if(k>0&&ts>=t0) o+=`<line x1="${X(ts)}" x2="${X(ts)}" y1="${T}" y2="${B}" stroke="#c4c9cf" stroke-dasharray="3,3"/>`;
+      const xs=X(Math.max(ts,t0)), xe=X(Math.min(te,t1));
+      if(!clean&&xe-xs>fs*1.6) o+=`<text x="${(xs+xe)/2}" y="${T+fs*1.05}" text-anchor="middle" font-size="${fs*0.78}" fill="${segOn(k)?"#59616b":"#b0b7bf"}">${shortName(Rw.names[k])}</text>`; } }
+  const cols=Math.max(50,Math.floor(R-L)), per=n/cols; let p="", pOff="";
+  for(let c=0;c<cols;c++){ const a=Math.floor(c*per), b=Math.min(n,Math.floor((c+1)*per)); if(b<=a) continue; let mn=Infinity,mx=-Infinity; for(let i=a;i<b;i++){ const v=y[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+    if(!(mx>=mn)) continue;
+    const x=(L+c+0.5).toFixed(1), seg=`M${x} ${Y(mx).toFixed(1)}L${x} ${Y(mn).toFixed(1)}`;
+    if(segOn(Math.floor((ia+a)/segN))) p+=seg; else pOff+=seg; }
+  const clipped=false;
+  o+=`<clipPath id="rclip"><rect x="${L}" y="${T}" width="${R-L}" height="${B-T}"/></clipPath><g clip-path="url(#rclip)">`;
+  if(pOff) o+=`<path d="${pOff}" stroke="#c4c9cf" stroke-width="1" fill="none"/>`;
+  o+=`<path d="${p}" stroke="${clipped?"#d62728":"#1f63c6"}" stroke-width="1" fill="none"/>`;
+  if(per<=4){ let q="", pen=false; for(let i=0;i<n;i++){ if(!isF(y[i])){ pen=false; continue; } q+=(pen?"L":"M")+X(t0+i*Rw.dt).toFixed(1)+" "+Y(y[i]).toFixed(1); pen=true; } o+=`<path d="${q}" stroke="${clipped?"#d62728":"#1f63c6"}" stroke-width="1.2" fill="none"/>`;
+    if(per<=1.5) for(let i=0;i<n;i++) if(isF(y[i])) o+=`<circle cx="${X(t0+i*Rw.dt).toFixed(1)}" cy="${Y(y[i]).toFixed(1)}" r="2" fill="#1f63c6"/>`; }
+  o+=`</g><rect x="${L}" y="${T}" width="${R-L}" height="${B-T}" fill="none" stroke="${ink}"/>`;
+  o+=`<text x="${(L+R)/2}" y="${B+fs*2.45}" text-anchor="middle">Time (s)</text>`;
+  o+=`<text transform="translate(${Math.round(L-rw-fs*1.0)},${Math.round((T+B)/2)}) rotate(-90)" text-anchor="middle" font-weight="500">${st.rawQty==="v"&&!procErr(d)?"Velocity":"Voltage"} (${rawUnit(d)})</text>`;
+  const tag=cat?name+(d.sel&&d.sel.size<Rw.names.length?"（灰色＝未勾選）":""):shortName(name);
+  const pe=procErr(d), bandT=st.rawBand==="all"?"":`　只保留 ${st.rawBand.replace("-","–")} Hz`;
+  const span=t1-t0, zt=(pe?`　⚠ ${pe}，先顯示電壓`:"")+bandT+((st.rawZoom||yz)?`　放大中：${span>2?t0.toFixed(2)+"–"+t1.toFixed(2)+" s":(t0*1e3).toFixed(1)+"–"+(t1*1e3).toFixed(1)+" ms"}（滾輪縮放、拖曳平移、點兩下回到整段）`:"");
+  if(clean) o+="</svg>"; else o+=`<text x="${L}" y="${T-fs*0.7}" font-weight="700" fill="${clipped?"#d62728":"#1c2024"}">${esc(tag)}<tspan font-weight="400" fill="#8b939c" font-size="${fs*0.85}">${esc(zt)}</tspan></text></svg>`;
+  return {svg:o, geom:{L,R,T,B,x0:t0,x1:t1,y0:ya,y1:yb,toX:X,fromX:px=>t0+(px-L)/(R-L)*(t1-t0),fromY:py=>ya+(B-py)/(B-T)*(yb-ya),raw:{y:yAll,t0:T0,dt:Rw.dt,unit:rawUnit(d),name}}};
+}
+function renderRawCard(){
+  const d=cur(), th=$("#rawThumb"), note=$("#rawNote");
+  const rl=$("#rawlist"); rl.innerHTML="";
+  st.ds.forEach((x,i)=>{ if(!x.raw||st.ds.findIndex(y=>y.raw===x.raw)!==i) return;   // groups sharing one RAW file: list it once
+    const r=document.createElement("div"); r.className="ds"+(d&&d.raw===x.raw?" sel":"");
+    r.innerHTML=`<input type="checkbox" ${x.visible?"checked":""} aria-label="顯示"><span class="sw" style="background:${x.color}"></span><span class="nm"></span>`;
+    r.querySelector(".nm").textContent=x.rawName; r.title=x.fftDerived?"FFT 由這個 RAW 計算":"對應 FFT："+x.fftName;
+    r.querySelector("input").addEventListener("click",e=>{ e.stopPropagation(); st.ds.forEach(y=>{ if(y.raw===x.raw) y.visible=e.target.checked; }); renderDsList(); refresh(); });
+    r.addEventListener("click",()=>{ if(!(d&&d.raw===x.raw)) st.cur=i; renderAll(); }); rl.appendChild(r); });
+  if(!rl.children.length) rl.innerHTML=`<div class="hint" style="padding:6px 2px">還沒有 RAW 檔</div>`;
+  $("#btnRawDel").disabled=!(d&&d.raw);
+  const ro=rawOf(d,false);
+  th.hidden=!ro;
+  if(!ro){ th.innerHTML=`<svg viewBox="0 0 300 64"><text x="150" y="37" text-anchor="middle" font-size="12" fill="#8b939c" font-family="${PFONT}">沒有 RAW 檔</text></svg>`; note.textContent=""; fillRawSel(); return; }
+  const {R,name,y}=ro, n=y.length, w=300, h=64, cols=150, per=n/cols;
+  let lo=Infinity, hi=-Infinity; for(const v of y){ if(v<lo)lo=v; if(v>hi)hi=v; }
+  const Y=v=>h-4-(v-lo)/((hi-lo)||1)*(h-8); let p="";
+  for(let c=0;c<cols;c++){ const a=Math.floor(c*per), b=Math.floor((c+1)*per); let mn=Infinity,mx=-Infinity; for(let i=a;i<b;i++){ if(y[i]<mn)mn=y[i]; if(y[i]>mx)mx=y[i]; } const x=(c*2+1); p+=`M${x} ${Y(mx).toFixed(1)}L${x} ${Y(mn).toFixed(1)}`; }
+  const clipped=false;
+  th.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${p}" stroke="${clipped?"#d62728":"#1f63c6"}" stroke-width="1.2" fill="none" vector-effect="non-scaling-stroke"/><text x="6" y="14" font-size="11" font-family="${PFONT}" fill="#59616b">${shortName(name)}</text></svg>`;
+  note.textContent=`${R.names.length} 條　·　${(R.dt*(n-1)).toFixed(2)} s　·　取樣 ${Math.round(1/R.dt)} Hz`;
+  fillRawSel();
+}
+function fillRawSel(){
+  const d=cur(), sel=$("#rawSel"), ro=rawOf(d);
+  sel.innerHTML=ro?ro.R.names.map((n,i)=>`<option value="${i}">${shortName(n)}</option>`).join(""):"";
+  if(ro) sel.value=String(Math.min(st.rawIdx,ro.R.names.length-1));
+  ["#rawSel","#rawPrev","#rawNext"].forEach(id=>$(id).disabled=!ro);
+}
+
+/* ---------- cursors ---------- */
+function curKey(){ return st.view==="raw"?"raw":"fft"; }
+function drawCursors(){
+  const ov=$("#ovl"), box=$("#live"); ov.setAttribute("viewBox",`0 0 ${box.clientWidth} ${box.clientHeight}`);
+  if(!st.cursor.on||!geom){ ov.innerHTML=""; renderCursorTable(); return; }
+  const k=curKey(); let c=st.cursor[k];
+  if(!c||c.some(v=>!(v>=Math.min(geom.x0,geom.x1)&&v<=Math.max(geom.x0,geom.x1)))){
+    c=k==="raw"?[geom.x0+(geom.x1-geom.x0)*0.3,geom.x0+(geom.x1-geom.x0)*0.32]:[Math.max(geom.x0,10),Math.min(geom.x1,50)]; st.cursor[k]=c; }
+  let o="";
+  c.forEach((v,i)=>{ const x=geom.toX(v), col=i?"#6f42c1":"#0a66d8", lab=i?"B":"A";
+    o+=`<g data-i="${i}"><line x1="${x}" x2="${x}" y1="${geom.T}" y2="${geom.B}" stroke="${col}" stroke-width="1.5"/>`+
+       `<line class="grab" data-i="${i}" x1="${x}" x2="${x}" y1="${geom.T}" y2="${geom.B}" stroke="transparent" stroke-width="12"/>`+
+       (i===(st.curAct||0)?`<rect x="${x-12}" y="${geom.T-4}" width="24" height="24" rx="6" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.55" pointer-events="none"/>`:"")+
+       `<rect class="knob" data-i="${i}" x="${x-9}" y="${geom.T-1}" width="18" height="18" rx="4" fill="${col}"/>`+
+       `<text x="${x}" y="${geom.T+12}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="${PFONT}" pointer-events="none">${lab}</text></g>`; });
+  ov.innerHTML=o; renderCursorTable();
+}
+function nearestIdx(xs,v,log){ let bi=0,bd=Infinity; for(let i=0;i<xs.length;i++){ const d=log?Math.abs(Math.log(xs[i]/v)):Math.abs(xs[i]-v); if(d<bd){bd=d;bi=i;} } return bi; }
+function fmtV(v){ return isF(v)?(Math.abs(v)>=1e4||Math.abs(v)<1e-3&&v!==0?v.toExponential(2):(+v.toPrecision(3)).toString()):"—"; }
+function renderCursorTable(){
+  const head=$("#curHead"), body=$("#curBody"), panel=$("#curPanel");
+  panel.hidden=!st.cursor.on||st.view==="out"||!geom;
+  if(panel.hidden) return;
+  const [a,b]=st.cursor[curKey()]||[];
+  if(st.view==="raw"){
+    const ft=x=>Math.abs(x)>=1?x.toFixed(3)+" s":(x*1e3).toFixed(2)+" ms";
+    const g=geom.raw, ia=Math.round((a-g.t0)/g.dt), ib=Math.round((b-g.t0)/g.dt), va=g.y[ia], vb=g.y[ib], dt=Math.abs(b-a);
+    const i0=Math.max(0,Math.min(ia,ib)), i1=Math.min(g.y.length-1,Math.max(ia,ib)); let ss=0,mx=-Infinity,mn=Infinity; for(let i=i0;i<=i1;i++){ ss+=g.y[i]*g.y[i]; mx=Math.max(mx,g.y[i]); mn=Math.min(mn,g.y[i]); }
+    head.innerHTML=`<tr><th>${shortName(g.name)}</th><th><span class="tagA">A</span>${ft(a)}</th><th><span class="tagB">B</span>${ft(b)}</th><th>Δt</th></tr>`;
+    body.innerHTML=`<tr><td>${g.unit==="µm/s"?"速度":"電壓"} (${g.unit})</td><td>${fmtV(va)}</td><td>${fmtV(vb)}</td><td>${ft(dt)}</td></tr>`;
+    return;
+  }
+  const log=true, bands=st.an.mode!=="窄頻", u=st.unit;
+  const SR=st.shown||st.results;
+  const fa=SR.length?SR[0].x[nearestIdx(SR[0].x,a,log)]:a, fb=SR.length?SR[0].x[nearestIdx(SR[0].x,b,log)]:b;
+  const ff=f=>bands?nominal(f)+" Hz":(f>=10?f.toFixed(1):f.toFixed(2))+" Hz";
+  head.innerHTML=`<tr><th>${st.leftTab==="data"||st.an.split?"序列":"資料組"}</th><th><span class="tagA">A</span>${ff(fa)}</th><th><span class="tagB">B</span>${ff(fb)}</th></tr>`;
+  body.innerHTML=(st.shown||st.results).map(r=>{
+    const ia=nearestIdx(r.x,a,log), ib=nearestIdx(r.x,b,log), va=r.y[ia], vb=r.y[ib];
+    const lo=Math.min(a,b), hi=Math.max(a,b); let ss=0,cnt=0;
+    const src=(!bands&&r.raw_y)?r.raw_y:r.y;
+    r.x.forEach((x,i)=>{ if(x>=lo&&x<=hi&&isF(src[i])){ ss+=src[i]*src[i]; cnt++; } });
+    return `<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${r.color};margin-right:8px"></span>${esc(r.label)}</td><td>${fmtV(va)} ${u}</td><td>${fmtV(vb)} ${u}</td></tr>`; }).join("")||`<tr><td colspan="3" class="hint">—</td></tr>`;
+}
+(function cursorDrag(){
+  const ov=$("#ovl"); let drag=-1;
+  ov.addEventListener("pointerdown",e=>{ const i=e.target.dataset&&e.target.dataset.i; if(i===undefined) return; drag=+i; st.curAct=+i; e.stopPropagation(); requestAnimationFrame(drawCursors); ov.setPointerCapture(e.pointerId); e.preventDefault(); });
+  ov.addEventListener("pointermove",e=>{ if(drag<0||!geom) return; const rc=$("#live").getBoundingClientRect(); let X=Math.max(geom.L,Math.min(geom.R,e.clientX-rc.left));
+    let v=geom.fromX(X);
+    if(st.view!=="raw"&&st.results.length){ const xs=st.results[0].x; v=xs[nearestIdx(xs,v,true)]; }
+    else if(st.view==="raw"&&geom.raw){ v=geom.raw.t0+Math.round((v-geom.raw.t0)/geom.raw.dt)*geom.raw.dt; }
+    st.cursor[curKey()][drag]=v; drawCursors(); });
+  const end=()=>{ drag=-1; }; ov.addEventListener("pointerup",end); ov.addEventListener("pointercancel",end); addEventListener("pointerup",end,true); addEventListener("blur",end);
+})();
+
+/* 鍵盤：← → 讓目前選中的游標走一格（FFT 一個頻率點、RAW 一個取樣點），Shift 一次 10 格；A / B 鍵切換游標 */
+addEventListener("keydown",e=>{
+  if(!st.cursor.on||st.view==="out"||!geom) return;
+  const tg=e.target, tag=tg&&tg.tagName; if(tag==="INPUT"||tag==="SELECT"||tag==="TEXTAREA"||(tg&&tg.isContentEditable)) return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  const k=e.key.toLowerCase();
+  if(k==="a"||k==="b"){ st.curAct=k==="a"?0:1; drawCursors(); e.preventDefault(); return; }
+  if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight") return;
+  const c=st.cursor[curKey()]; if(!c) return; e.preventDefault();
+  const i=st.curAct||0, n=(e.shiftKey?10:1)*(e.key==="ArrowRight"?1:-1), lo=Math.min(geom.x0,geom.x1), hi=Math.max(geom.x0,geom.x1);
+  if(st.view==="raw"&&geom.raw){ const dt=geom.raw.dt, px=Math.max(dt,Math.round((hi-lo)/(geom.R-geom.L)/dt)*dt);   // one step = one screen pixel (one sample when zoomed in far enough)
+    c[i]=Math.max(lo,Math.min(hi,c[i]+n*px)); c[i]=geom.raw.t0+Math.round((c[i]-geom.raw.t0)/dt)*dt; }
+  else { const SR=st.shown&&st.shown.length?st.shown:st.results; if(!SR.length) return; const xs=SR[0].x;
+    let j=nearestIdx(xs,c[i],true)+n; while(j>0&&xs[j]<lo) j++; j=Math.max(0,Math.min(xs.length-1,j)); while(j>0&&xs[j]>hi) j--; c[i]=xs[j]; }
+  drawCursors(); });
+
+/* readout */
+$("#live").addEventListener("mousemove",e=>{
+  const ro=$("#readout"); if(!geom||st.view==="raw"||!(st.shown||st.results).length){ro.hidden=true;return;}
+  const rc=e.currentTarget.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top;
+  if(X<geom.L||X>geom.R||Y<geom.T||Y>geom.B){ro.hidden=true;return;}
+  const f=geom.fromX(X);
+  let html=""; let fsnap=f;
+  for(const r of (st.shown||st.results)){ const bi=nearestIdx(r.x,f,true); fsnap=r.x[bi];
+    const v=r.y[bi]; html+=`<div><i style="background:${r.color}"></i>${fmtV(v)} ${st.unit}</div>`; }
+  ro.innerHTML=`<div style="color:#aab">${st.an.mode==="窄頻"?fsnap.toFixed(2):nominal(fsnap)} Hz</div>`+html;
+  ro.style.left=X+"px"; ro.style.top=Y+"px"; ro.hidden=false;
+});
+$("#live").addEventListener("mouseleave",()=>$("#readout").hidden=true);
+
+/* ================= file handling ================= */
+/* large files: say what is being read, let the page repaint between files, and turn an out-of-memory error into a plain message */
+const pause=(ms=30)=>new Promise(r=>setTimeout(r,ms));
+const MB=b=>(b/1048576).toFixed(b<1048576*10?1:0);
+async function loadTdms(f){
+  setStatus(`讀取中：${f.name}（${MB(f.size)} MB）…`); await pause();
+  try{ return readTDMS(await f.arrayBuffer()); }
+  catch(e){ if(e instanceof RangeError||/memory|allocat/i.test(e.message||"")) throw new Error(`檔案 ${MB(f.size)} MB，瀏覽器記憶體不夠，讀不進來`); throw e; }
+}
+async function fftFromRawAsync(R,name){
+  const parts=[], step=Math.max(1,Math.floor(2e6/R.data[R.names[0]].length));
+  for(let i=0;i<R.names.length;i+=step){ setStatus(`由 RAW 計算 FFT：${name}　${Math.min(i+step,R.names.length)} / ${R.names.length}`); await pause(0);
+    parts.push(fftFromRaw({...R,names:R.names.slice(i,i+step)})); }
+  const out=parts[0]; for(const q of parts.slice(1)){ out.names.push(...q.names); out.amps.push(...q.amps); } return out;
+}
+async function addFiles(files){
+  const list=[...files]; persistFiles(list); const cals=list.filter(f=>/\.(dat|txt|csv)$/i.test(f.name)), tdms=list.filter(f=>/\.tdms$/i.test(f.name));
+  const raws=tdms.filter(f=>/raw/i.test(f.name)), ffts=tdms.filter(f=>!raws.includes(f));
+  let cal=null, calName="";
+  try{ for(const cf of cals){ const c=calAdd(cf.name,parseCal(await cf.text())); if(!cal){ cal=c.cal; calName=c.name; } } }catch(e){ setStatus("⚠ 校正檔："+e.message); }
+  const big=tdms.reduce((a,f)=>a+f.size,0);
+  if(big>300*1048576){ const k=await ask(`<b>這次要讀入 ${MB(big)} MB 的 TDMS 檔</b><br>讀檔時瀏覽器大約需要檔案大小 2–3 倍的記憶體，可能會跑比較久或沒有回應。<br><span class="hint">檔案很多時，建議一次加幾個就好。</span>`,[{label:"取消"},{label:"繼續讀入",primary:true}]); if(k===0) return; }
+  const prev=st.ds[st.ds.length-1];
+  const skipped=[];
+  for(const f of ffts){
+    if(st.ds.some(x=>x.fftFile&&x.fftBase===f.name)){ skipped.push(f.name); continue; }   // same FFT file already loaded
+    { // a data set made earlier from the matching RAW: give it the real FFT file instead of the computed one
+      const dr=st.ds.find(x=>x.fftDerived&&x.rawName&&x.rawName===f.name.replace(/FFT/i,"RAW"));
+      if(dr){ try{ const fft=parseFFT(await loadTdms(f));
+          dr.fft=fft; dr.fftFile=fft; dr.fftBase=f.name; dr.fftName=f.name; dr.fftSrc="file"; dr.fftDerived=false; dr.fftUnit="auto";
+          dr.sel=new Set([...dr.sel].filter(n=>fft.names.includes(n))); st.cur=st.ds.indexOf(dr);
+        }catch(e){ notice(`⚠ ${f.name}：${e.message}`); } continue; } }
+    try{
+      const g=await loadTdms(f), fft=parseFFT(g);
+      const d=newDs(f.name.replace(/\.tdms$/i,"").replace(/_?FFT_?/i,"_").replace(/^_|_$/g,""));
+      d.fft=fft; d.fftFile=fft; d.fftBase=f.name; d.fftSrc="file"; d.fftName=f.name; d.sel=new Set();   // nothing ticked on load: user decides what to draw
+      d.cal=cal||(prev&&prev.cal)||(CAL_LIB[0]&&CAL_LIB[0].cal)||null; d.calName=cal?calName:(prev?prev.calName:(CAL_LIB[0]?CAL_LIB[0].name:""));
+      if(prev&&!cal){ d.sensUnit=prev.sensUnit; d.fftUnit=prev.fftUnit; d.gain=prev.gain; }
+      const key=f.name.replace(/FFT/i,"RAW"), rf=raws.find(r=>r.name===key)||(raws.length===1&&ffts.length===1?raws[0]:null);
+      if(rf){ d.raw=parseRaw(await loadTdms(rf)); d.clips=d.raw.clips; d.rawName=rf.name; raws.splice(raws.indexOf(rf),1); }
+      st.ds.push(d); st.cur=st.ds.length-1;
+    }catch(e){ notice(`⚠ ${f.name}：${e.message}`); }
+  }
+  if(!ffts.length&&cal&&cur()){ cur().cal=cal; cur().calName=calName; }
+  skipped.push(...await addRaws(raws, cal, calName));
+  if(skipped.length) notice(`已經載入過，沒有重複加入：${skipped.join("、")}`);
+  renderAll();
+}
+/* RAW files: attach to the data set whose FFT has the same name; otherwise make a new data set whose FFT is computed from the RAW */
+async function addRaws(raws, cal, calName){
+  const skipped=[];
+  for(const rf of raws){
+    if(st.ds.some(x=>x.rawName===rf.name)){ skipped.push(rf.name); continue; }   // same RAW file already loaded
+    try{
+      const R=parseRaw(await loadTdms(rf));
+      let d=st.ds.find(x=>!x.fftDerived&&x.fftBase&&x.fftBase.replace(/FFT/i,"RAW")===rf.name);
+      if(!d){ const prev=st.ds[st.ds.length-1];
+        d=newDs(rf.name.replace(/\.tdms$/i,"").replace(/_?RAW_?/i,"_").replace(/^_|_$/g,""));
+        d.fft=await fftFromRawAsync(R,rf.name); d.fftRaw=d.fft; d.fftSrc="raw"; d.fftDerived=true; d.fftName="由 RAW 計算"; d.sel=new Set();
+        d.cal=cal||(prev&&prev.cal)||(CAL_LIB[0]&&CAL_LIB[0].cal)||null; d.calName=cal?calName:(prev?prev.calName:(CAL_LIB[0]?CAL_LIB[0].name:""));
+        if(prev&&!cal){ d.sensUnit=prev.sensUnit; d.gain=prev.gain; }
+        st.ds.push(d); }
+      d.raw=R; d.clips=R.clips; d.rawName=rf.name; st.cur=st.ds.indexOf(d);
+    }catch(e){ notice(`⚠ ${rf.name}：${e.message}`); } }
+  return skipped;
+}
+$("#btnAdd").onclick=()=>$("#fileIn").click();
+$("#fileIn").onchange=e=>{ addFiles(e.target.files); e.target.value=""; };
+/* calibration library: built-in files + any the user loads this session */
+const CAL_LIB=[];
+function calAdd(name,cal,label){ let e=CAL_LIB.find(x=>x.name===name); if(!e){ e={name,cal,label:label||name}; CAL_LIB.push(e); } return e; }
+function fillCalSel(d){ const sel=$("#calSel");
+  sel.innerHTML=CAL_LIB.map((e,i)=>`<option value="${i}">${esc(e.label)}</option>`).join("")+`<option value="other">選擇其他檔案…</option>`;
+  const i=CAL_LIB.findIndex(e=>e.name===d.calName); if(i>=0) sel.value=String(i); else { sel.insertAdjacentHTML("afterbegin",`<option value="" selected>${d.calName?esc(d.calName):"未選擇"}</option>`); } }
+$("#calSel").onchange=e=>{ const d=cur(); if(!d) return;
+  if(e.target.value==="other"){ fillCalSel(d); $("#calIn").click(); return; }
+  const c=CAL_LIB[+e.target.value]; if(c){ d.cal=c.cal; d.calName=c.name; d.sensUnit="auto"; renderAll(); } };
+$("#calIn").onchange=async e=>{ const f=e.target.files[0], d=cur(); if(f){ persistFiles([f]); try{ const c=calAdd(f.name,parseCal(await f.text())); if(d){ d.cal=c.cal; d.calName=c.name; d.sensUnit="auto"; } }catch(x){ setStatus("⚠ "+x.message); } renderAll(); } e.target.value=""; };
+$("#btnRawAdd").onclick=()=>$("#rawIn").click();
+$("#rawIn").onchange=async e=>{ persistFiles([...e.target.files]); const sk=await addRaws([...e.target.files]); e.target.value=""; renderAll(); if(sk.length){ notice(`已經載入過，沒有重複加入：${sk.join("、")}`); refresh(); } };
+$("#btnRawDel").onclick=()=>{ const d=cur(); if(!d||!d.raw) return; const R=d.raw;
+  if(d.fftDerived){ st.ds=st.ds.filter(x=>x.raw!==R); st.cur=Math.min(st.cur,st.ds.length-1); }
+  else st.ds.forEach(x=>{ if(x.raw===R){ x.raw=null; x.clips=null; x.rawName=""; } });
+  renderAll(); };
+$("#btnDel").onclick=()=>{ if(st.cur>=0){ st.ds.splice(st.cur,1); st.cur=Math.min(st.cur,st.ds.length-1); renderAll(); } };
+let dragN=0;
+addEventListener("dragenter",e=>{ e.preventDefault(); dragN++; $("#dropOv").hidden=false; });
+addEventListener("dragleave",()=>{ if(--dragN<=0){ dragN=0; $("#dropOv").hidden=true; } });
+addEventListener("dragover",e=>e.preventDefault());
+addEventListener("drop",e=>{ e.preventDefault(); dragN=0; $("#dropOv").hidden=true; if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+
+/* ================= controls ================= */
+document.querySelectorAll("aside .tab").forEach(b=>b.onclick=()=>{ document.querySelectorAll("aside .tab").forEach(x=>x.setAttribute("aria-selected",String(x===b)));
+  st.leftTab=b.dataset.tab; if(st.view!=="out") draw();
+  document.querySelectorAll(".pane").forEach(p=>p.hidden=p.dataset.pane!==b.dataset.tab); });
+document.querySelectorAll(".vtabs .tab").forEach(b=>b.onclick=()=>{ document.querySelectorAll(".vtabs .tab").forEach(x=>x.setAttribute("aria-selected",String(x===b)));
+  setView(b.dataset.view); });
+function setView(v){ st.view=v; document.querySelectorAll(".vtabs .tab").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.view===v)));
+  $("#live").hidden=v==="out"; $("#preview").hidden=v!=="out"; $("#outBar").hidden=v!=="out"; $("#fftExport").hidden=v!=="fft"; $("#rawNav").hidden=v!=="raw"; $("#zoomBar").hidden=v!=="fft"||!st.zoom; $("#curToggle").hidden=v==="out";
+  $("#resBody").closest(".resw").hidden=v==="raw"; draw(); renderCursorTable(); }
+$("#curOn").onchange=e=>{ st.cursor.on=e.target.checked; drawCursors(); };
+$("#rawThumb").onclick=()=>setView("raw");
+function rawYKey(d){ return `${st.ds.indexOf(d)}|${st.rawQty}|${st.rawBand}|${st.rawMode}`; }
+function syncZoomBtns(){ $("#rawBack").disabled=!st.rawHist.length; $("#rawFull").disabled=!st.rawZoom&&!st.rawY; }
+function setRawZoom(z,push=true,y){ if(push) st.rawHist.push({z:st.rawZoom,y:st.rawY,c:st.cursor.raw&&[...st.cursor.raw]}); st.rawZoom=z; if(y!==undefined) st.rawY=y; syncZoomBtns(); draw(); }
+segInit("#rawQty",()=>st.rawQty,v=>{ st.rawQty=v; draw(); });
+$("#rawBand").onchange=e=>{ st.rawBand=e.target.value; draw(); };
+/* save through the viewer's download prompt when hosted as an artifact; plain link otherwise */
+let DL=undefined; (async()=>{ try{ DL=window.claude&&window.claude.use?await window.claude.use("downloads"):null; }catch(e){ DL=null; } })();
+async function saveFile(fn,blob){
+  if(DL){ try{ await DL.save({filename:fn,data:blob}); notice(`已匯出 ${fn}`); refresh(); }catch(e){ if(e&&e.code!=="declined"){ notice("匯出失敗："+(e.message||e.code)); refresh(); } } return; }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fn; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+/* export the output figure (same drawing as 輸出預覽, at the template size) */
+function outFigure(){ const t=TPL[st.po.tpl], pt=28.3465, W=t.w*pt, H=t.h*pt, res=anaCurves().filter(x=>x.nUsed>0);
+  const r=drawSVG(res,W,H,1,t,false), base=(res.length===1?res[0].label:res.length?"FFT_"+res.length+"組":"FFT").replace(/[\\/:*?"<>|]/g,"_");
+  return {svg:r.svg,W,H,t,base}; }
+function pngWithDpi(buf,dpi){   // add a pHYs chunk so Word / PowerPoint place it at the real size
+  const u=new Uint8Array(buf), ppm=Math.round(dpi/0.0254), ch=new Uint8Array(21), dv=new DataView(ch.buffer);
+  dv.setUint32(0,9); ch.set([112,72,89,115],4); dv.setUint32(8,ppm); dv.setUint32(12,ppm); ch[16]=1;
+  let c=~0; for(let i=4;i<17;i++){ c^=ch[i]; for(let k=0;k<8;k++) c=(c>>>1)^(0xEDB88320&-(c&1)); } dv.setUint32(17,~c>>>0);
+  const at=33, out=new Uint8Array(u.length+21); out.set(u.subarray(0,at)); out.set(ch,at); out.set(u.subarray(at),at+21); return new Blob([out],{type:"image/png"}); }
+$("#expPng").onclick=()=>{ const F=outFigure(), pw=Math.round(F.t.w/2.54*F.t.dpi), ph=Math.round(F.t.h/2.54*F.t.dpi);
+  const img=new Image(), url=URL.createObjectURL(new Blob([F.svg],{type:"image/svg+xml"}));
+  img.onload=()=>{ const c=document.createElement("canvas"); c.width=pw; c.height=ph; const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,pw,ph); g.drawImage(img,0,0,pw,ph); URL.revokeObjectURL(url);
+    c.toBlob(async b=>saveFile(`${F.base}.png`,pngWithDpi(await b.arrayBuffer(),F.t.dpi)),"image/png"); };
+  img.src=url; };
+$("#expSvg").onclick=()=>{ const F=outFigure(), svg=F.svg.replace(/width="[^"]*" height="[^"]*"/,`width="${F.t.w}cm" height="${F.t.h}cm"`);
+  saveFile(`${F.base}.svg`,new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n'+svg],{type:"image/svg+xml"})); };
+/* FFT view: save what is on screen (zoom, groups, sequences) without the caption text */
+$("#fftExport").onclick=()=>{ const box=$("#live"), W=box.clientWidth, H=box.clientHeight, seq=st.leftTab==="data", k=3;
+  st._clean=true; let r; try{ r=drawSVG(seq?seqCurves():anaCurves(),W,H,1.33,TPL.screen,true,seq); } finally{ st._clean=false; }
+  const img=new Image(), url=URL.createObjectURL(new Blob([r.svg],{type:"image/svg+xml"}));
+  img.onload=()=>{ const c=document.createElement("canvas"); c.width=W*k; c.height=H*k; const g=c.getContext("2d"); g.scale(k,k); g.drawImage(img,0,0,W,H); URL.revokeObjectURL(url);
+    const d=cur(), base=(seq&&d?d.label:(st.results.filter(x=>x.nUsed).length===1?st.results.find(x=>x.nUsed).label:"FFT")).replace(/[\\/:*?"<>|]/g,"_");
+    c.toBlob(b=>saveFile(`${base.replace(/–/g,"-").replace(/#/g,"").replace(/[\s,…]+/g,"_").replace(/_+/g,"_")}_FFT.png`,b),"image/png"); };
+  img.src=url; };
+$("#rawExport").onclick=()=>{ const d=cur(), box=$("#live"), W=box.clientWidth, H=box.clientHeight, r=drawRaw(d,W,H,true); if(!r.geom) return;
+  const k=3, img=new Image(), url=URL.createObjectURL(new Blob([r.svg],{type:"image/svg+xml"}));
+  img.onload=()=>{ const c=document.createElement("canvas"); c.width=W*k; c.height=H*k; const g=c.getContext("2d"); g.scale(k,k); g.drawImage(img,0,0,W,H); URL.revokeObjectURL(url);
+    c.toBlob(b=>{ const a=document.createElement("a"), base=(d.rawName||d.label||"raw").replace(/\.tdms$/i,"").replace(/[\\/:*?"<>|]/g,"_");
+      const fn=`${base}_${st.rawMode==="all"?"all":shortName(rawOf(d).name).replace("#","")}_${st.rawQty==="v"?"velocity":"voltage"}.png`; saveFile(fn,b); },"image/png"); };
+  img.src=url; };
+$("#rawZoom").onclick=()=>{ const c=st.cursor.raw; if(c&&Math.abs(c[1]-c[0])>0){ const z=[Math.min(...c),Math.max(...c)], w=z[1]-z[0]; setRawZoom(z); st.cursor.raw=[z[0]+w*0.25,z[0]+w*0.75]; draw(); } };
+$("#rawBack").onclick=()=>{ const h=st.rawHist.pop(); if(!h) return; st.rawZoom=h.z; st.rawY=h.y||null; st.cursor.raw=h.c; syncZoomBtns(); draw(); };
+$("#rawFull").onclick=()=>{ if(st.rawZoom||st.rawY){ setRawZoom(null,true,null); st.cursor.raw=null; draw(); } };
+$("#live").addEventListener("dblclick",()=>{ if(st.view==="raw"&&(st.rawZoom||st.rawY)){ setRawZoom(null,true,null); st.cursor.raw=null; draw(); } });
+addEventListener("keydown",e=>{ if(e.key==="Escape"&&st.view==="raw"&&st.rawHist.length) $("#rawBack").click(); });
+segInit("#rawMode",()=>st.rawMode,v=>{ st.rawMode=v; st.rawZoom=null; st.rawHist=[]; st.cursor.raw=null;
+  ["#rawPrev","#rawSel","#rawNext"].forEach(id=>$(id).hidden=v==="all"); syncZoomBtns(); draw(); });
+$("#rawSel").onchange=e=>{ st.rawIdx=+e.target.value; renderRawCard(); draw(); };
+$("#rawPrev").onclick=()=>{ const ro=rawOf(cur()); if(!ro) return; st.rawIdx=(st.rawIdx-1+ro.R.names.length)%ro.R.names.length; renderRawCard(); draw(); };
+$("#rawNext").onclick=()=>{ const ro=rawOf(cur()); if(!ro) return; st.rawIdx=(st.rawIdx+1)%ro.R.names.length; renderRawCard(); draw(); };
+$("#uFft").innerHTML=["auto",...Object.keys(VOLT)].map(u=>`<option value="${u}">${u==="auto"?"自動":u.replace("uV","µV")}</option>`).join("");
+$("#uSens").innerHTML=["auto",...Object.keys(SENS)].map(u=>`<option value="${u}">${u==="auto"?"自動":u}</option>`).join("");
+$("#btnAdv").onclick=()=>setAdv($("#adv").hidden);
+const onUnits=()=>{ const d=cur(); if(!d) return; d.fftUnit=$("#uFft").value; d.sensUnit=$("#uSens").value; d.gain=parseFloat($("#uGain").value)||1; renderDetail(); refresh(); };
+$("#uFft").onchange=onUnits; $("#uSens").onchange=onUnits; $("#uGain").onchange=onUnits;
+$("#btnUnitReset").onclick=()=>{ const d=cur(); if(!d) return; d.fftUnit="auto"; d.sensUnit="auto"; d.gain=1; renderDetail(); refresh(); };
+$("#dsLabel").oninput=e=>{ const d=cur(); if(d){ d.label=e.target.value; d.autoLabel=false; renderDsList(); refresh(); } };
+$("#btnGroup").onclick=addGroup;
+$("#dsColor").oninput=e=>{ const d=cur(); if(d){ d.color=e.target.value; $("#colorSw").style.background=d.color; renderDsList(); refresh(); } };
+$("#dsLs").onchange=e=>{ const d=cur(); if(d){ d.ls=e.target.value; refresh(); } };
+const LW_OPTS=[0.5,0.75,1,1.5,2,3], LS_OPTS=[["-","實線"],["--","虛線"],[":","點線"],["-.","點虛線"]];
+$("#dsLw").innerHTML=LW_OPTS.map(w=>`<option value="${w}">${w}×</option>`).join("");
+$("#dsLw").onchange=e=>{ const d=cur(); if(d){ d.lw=+e.target.value; refresh(); } };
+/* colour / style / width controls bound to an object */
+function styleCtl(id,obj,onChange){
+  return {html:`<span class="colorbtn sm" id="${id}Sw" style="background:${obj.color}" title="顏色"><input type="color" id="${id}C" value="${obj.color}"></span>`+
+    `<select class="ls" id="${id}Ls" title="線型">${LS_OPTS.map(([v,n])=>`<option value="${v}" ${obj.ls===v?"selected":""}>${n}</option>`).join("")}</select>`+
+    `<select class="lw" id="${id}Lw" title="粗細">${LW_OPTS.map(w=>`<option value="${w}" ${obj.lw===w?"selected":""}>${w}×</option>`).join("")}</select>`,
+   bind(){ $("#"+id+"C").oninput=e=>{ obj.color=e.target.value; $("#"+id+"Sw").style.background=obj.color; onChange(); };
+     $("#"+id+"Ls").onchange=e=>{ obj.ls=e.target.value; onChange(); }; $("#"+id+"Lw").onchange=e=>{ obj.lw=+e.target.value; onChange(); }; }};
+}
+(function vcStyleUI(){ const c=styleCtl("vcs",st.an.vcStyle,()=>draw()); $("#vcStyle").innerHTML=`<span class="hint" style="width:64px">線條</span>`+c.html; c.bind(); })();
+/* estimate how many points the plot will draw if every sequence is ticked */
+function drawLoad(d){
+  const f=d.fft.freq, x0=parseFloat(st.po.x0)||1, x1=parseFloat(st.po.x1)||100;
+  let per=st.an.mode!=="窄頻"?40:(st.an.sm==="分段"?binIndex(f).filter(b=>b.f>=x0&&b.f<=x1).length:f.filter(v=>v>=x0&&v<=x1).length);
+  const n=d.fft.names.length, drawsIndiv=st.leftTab==="data"?st.po.showSeq!==false:!!st.an.split;
+  return {n, per, pts:(drawsIndiv?n:1)*per, bytes:n*f.length*8};
+}
+const LOAD_LIMIT=250000;   // points on screen before the browser starts to struggle
+function ask(msg,buttons){ return new Promise(res=>{ const ov=document.createElement("div"); ov.className="modal";
+  ov.innerHTML=`<div class="box" role="dialog" aria-modal="true"><div class="msg">${msg}</div><div class="btns">${buttons.map((b,i)=>`<button data-i="${i}" class="${b.primary?"primary":""}">${b.label}</button>`).join("")}</div></div>`;
+  document.body.appendChild(ov); ov.querySelectorAll("button").forEach(b=>b.onclick=()=>{ ov.remove(); res(+b.dataset.i); });
+  ov.querySelector("button").focus(); }); }
+/* drawing every sequence: ask first when it is a lot of lines */
+const LINE_LIMIT=30;
+async function okToDrawMany(on){ const d=cur(); if(!on||!d||!d.fft) return true;
+  const n=st.leftTab==="data"?(d.sel?d.sel.size:0):st.results.reduce((a,r)=>a+r.nUsed,0), L=drawLoad(d), pts=n*L.per;
+  if(n<=LINE_LIMIT&&pts<=LOAD_LIMIT) return true;
+  return (await ask(`<b>要畫出 ${n} 條序列</b>（約 ${(pts/1e4).toFixed(0)} 萬個點）<br>線太多會看不清楚，也可能讓瀏覽器變慢。`,[{label:"取消",primary:true},{label:"仍然畫出"}]))===1; }
+/* 「顯示個別序列」：資料頁和分析頁是同一個開關 */
+function setSeqShow(on){ st.po.showSeq=on; st.an.split=on; $("#pSeq").checked=on; $("#aSplit").checked=on; renderDetail(); refresh(); }
+async function onSeqToggle(e){ const on=e.target.checked; if(!await okToDrawMany(on)){ e.target.checked=false; return; } setSeqShow(on); }
+$("#pSeq").addEventListener("change",onSeqToggle);
+$("#mAll").onclick=async()=>{ const d=cur(); if(!d||!d.fft) return;
+  const L=drawLoad(d);
+  if(L.pts>LOAD_LIMIT||(L.pts>L.per&&L.n>LINE_LIMIT)){
+    const k=await ask(`<b>全選 ${L.n} 條序列，圖上大約要畫 ${(L.pts/1e4).toFixed(0)} 萬個點</b><br>線太多會看不清楚，也可能讓瀏覽器變得很慢。<br><span class="hint">建議：只算平均、不畫個別序列；或先縮小 X 範圍、改用「分段合併」平滑。</span>`,
+      [{label:"取消"},{label:"全選，但只畫平均線",primary:true},{label:"仍然全選並全部畫出"}]);
+    if(k===0) return;
+    if(k===1) setSeqShow(false);
+  }
+  d.sel=new Set(d.fft.names); renderDetail(); refresh(); };
+$("#mNone").onclick=()=>{ const d=cur(); if(d){ d.sel=new Set(); renderDetail(); refresh(); } };
+
+function segInit(id,get,set){ const el=$(id); el.querySelectorAll("button").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.v===get())); b.onclick=()=>{ set(b.dataset.v); el.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); }; }); }
+$("#aSplit").addEventListener("change",onSeqToggle);
+segInit("#modeSeg",()=>st.an.mode,v=>{ st.an.mode=v; $("#aSm").disabled=v!=="窄頻"; refresh(); });
+segInit("#tplSeg",()=>st.po.tpl,v=>{ st.po.tpl=v; if(st.view!=="out") setView("out"); else draw(); });
+const fillUnits=()=>{ $("#aUnit").innerHTML=["自動",...Object.keys(QUANT[st.an.q])].map(u=>`<option>${u}</option>`).join(""); $("#aUnit").value=st.an.unit in QUANT[st.an.q]?st.an.unit:"自動"; };
+fillUnits();
+$("#aQ").onchange=e=>{ st.an.q=e.target.value; st.an.unit="自動"; fillUnits(); refresh(); };
+$("#aUnit").onchange=e=>{ st.an.unit=e.target.value; refresh(); };
+$("#aAvg").onchange=e=>{ st.an.avg=e.target.value; refresh(); };
+(function customUI(){
+  const cu=st.an.custom, box=$("#custom");
+  const scs=cu.segs.map((g,i)=>styleCtl("cs"+i,g,()=>draw()));
+  box.innerHTML=`<label class="cb"><input type="checkbox" id="cuOn" ${cu.on?"checked":""}>顯示並判斷</label>`+
+    cu.segs.map((g,i)=>`<div class="segblk"><div class="row seg2"><input type="number" id="cf0${i}" value="${g.f0}" min="0" step="any" aria-label="起始頻率"><span>–</span><input type="number" id="cf1${i}" value="${g.f1}" min="0" step="any" aria-label="結束頻率"><span class="hint">Hz</span><input type="number" id="cv${i}" value="${g.v}" min="0" step="any" aria-label="上限"><span class="hint">µm/s</span></div><div class="stylerow">${scs[i].html}</div></div>`).join("");
+  scs.forEach(c=>c.bind());
+  const upd=()=>{ cu.segs.forEach((g,i)=>{ for(const [k,id] of [["f0","cf0"],["f1","cf1"],["v","cv"]]){ const v=parseFloat($("#"+id+i).value); if(isF(v)&&v>=0) g[k]=v; } }); refresh(); };
+  cu.segs.forEach((g,i)=>["cf0","cf1","cv"].forEach(id=>$("#"+id+i).addEventListener("input",upd)));
+  $("#cuOn").onchange=e=>{ cu.on=e.target.checked; refresh(); };
+})();
+function smInfo(){ const d=st.ds.find(x=>x.fft), sm=st.an.sm, el=$("#smInfo");
+  if(/^ma/.test(sm)){ const n=+sm.slice(2), df=d?d.fft.freq[1]-d.fft.freq[0]:0.25; el.textContent=`每個點和前後共 ${n} 個點取平均（約 ${+(n*df).toPrecision(3)} Hz 寬）`; }
+  else if(sm==="分段"&&d){ const b=autoBins(d.fft.freq).slice(0,5); el.textContent="自動："+b.map(x=>`${+x.start.toPrecision(4)}–${+x.end.toPrecision(4)} Hz 每 ${+x.width.toPrecision(3)}`).join("、")+" …（RMS 合併）"; }
+  else el.textContent=""; }
+$("#aSm").onchange=e=>{ st.an.sm=e.target.value; smInfo(); refresh(); };
+smInfo();
+$("#vcgrid").innerHTML=VC.map(([n,l])=>`<label class="cb"><input type="checkbox" data-vc="${n}" ${st.an.vc.includes(n)?"checked":""}>${n}<span class="lim">${l}</span></label>`).join("");
+const syncVc=()=>{ st.an.vc=[...document.querySelectorAll("[data-vc]")].filter(x=>x.checked).map(x=>x.dataset.vc);
+  if(st.an.vc.length&&!st.po.vc){ st.po.vc=true; $("#pVc").checked=true; }   // ticking a VC line turns line drawing on
+  refresh(); };
+document.querySelectorAll("[data-vc]").forEach(x=>x.onchange=syncVc);
+document.querySelectorAll("[data-vcp]").forEach(b=>b.onclick=()=>{ const p=b.dataset.vcp, s=p==="stm"?["VC-D","VC-E","VC-F","VC-G"]:p==="all"?VC.map(v=>v[0]):[];
+  document.querySelectorAll("[data-vc]").forEach(x=>x.checked=s.includes(x.dataset.vc)); syncVc(); });
+const bindPo=(id,key,ev="input",fn=e=>e.target.value)=>$(id).addEventListener(ev,e=>{ st.po[key]=fn(e); refresh(); });
+$("#pYg").addEventListener("input",e=>{ st.po.ylGap=+e.target.value; refresh(); });
+$("#pYg").addEventListener("dblclick",e=>{ e.target.value=0.55; st.po.ylGap=0.55; refresh(); });
+/* drag the Y title sideways in the output preview */
+(function ylDrag(){ const box=$("#preview"); let D=null;
+  box.addEventListener("pointerdown",e=>{ if(!(e.target.classList&&e.target.classList.contains("ylab"))) return;
+    D={x:e.clientX,g:isF(st.po.ylGap)?st.po.ylGap:0.55,f:(geomOut&&geomOut.fs||10)*st.prevSc}; box.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); });
+  box.addEventListener("pointermove",e=>{ if(!D) return; st.po.ylGap=Math.max(-3,Math.min(4,D.g-(e.clientX-D.x)/D.f)); $("#pYg").value=st.po.ylGap; draw(); });
+  const end=()=>{ if(D){ D=null; refresh(); } }; box.addEventListener("pointerup",end); box.addEventListener("pointercancel",end);
+})();
+bindPo("#pTitle","title"); bindPo("#pYl","yl"); bindPo("#pX0","x0","change"); bindPo("#pX1","x1","change"); bindPo("#pY0","y0","change"); bindPo("#pY1","y1","change");
+bindPo("#pGrid","grid","change",e=>e.target.checked); bindPo("#pLeg","leg","change"); bindPo("#pVc","vc","change",e=>e.target.checked);
+bindPo("#pVcLeg","vcLeg","change",e=>e.target.checked); bindPo("#pLegN","legN","change",e=>e.target.checked); $("#pIndiv").addEventListener("change",e=>{ st.po.indiv=e.target.checked; renderDetail(); refresh(); });
+
+new ResizeObserver(()=>{ if(st.view!=="out") draw(); }).observe($("#live")); new ResizeObserver(()=>{ if(st.view==="out") draw(); }).observe($("#preview"));
+
+/* template size / font / dpi editing (font scales all text & legend proportionally) */
+for(const [id,k] of [["#tW","w"],["#tH","h"],["#tF","font"],["#tD","dpi"],["#tL","lw"]]) $(id).addEventListener("input",e=>{
+  const v=parseFloat(e.target.value), t=TPL[st.po.tpl]; if(!(v>0)) return;
+  if(k==="font"){ const r=v/t.font; t.legend*=r; t.title*=r; }
+  t[k]=v; draw(); });
+$("#tReset").onclick=()=>{ TPL[st.po.tpl]=JSON.parse(JSON.stringify(TPL_DEF[st.po.tpl])); draw(); };
+
+/* plot / table splitter */
+(function splitter(){
+  const sp=$("#split"), low=$("#lower"), KEY="fvs-lower-h";
+  try{ const h=+localStorage.getItem(KEY); if(h>=40) low.style.height=h+"px"; }catch(e){}
+  let y0=0,h0=0,drag=false;
+  sp.addEventListener("pointerdown",e=>{ drag=true; y0=e.clientY; h0=low.offsetHeight; sp.setPointerCapture(e.pointerId); sp.classList.add("drag"); e.preventDefault(); });
+  sp.addEventListener("pointermove",e=>{ if(!drag) return; const mainH=low.parentElement.clientHeight;
+    const h=Math.max(40,Math.min(mainH-220,h0-(e.clientY-y0))); low.style.height=h+"px"; });
+  const end=()=>{ if(!drag) return; drag=false; sp.classList.remove("drag"); try{ localStorage.setItem(KEY,low.offsetHeight); }catch(e){} };
+  sp.addEventListener("pointerup",end); sp.addEventListener("pointercancel",end);
+  sp.addEventListener("dblclick",()=>{ low.style.height="200px"; try{ localStorage.removeItem(KEY); }catch(e){} });
+  sp.addEventListener("keydown",e=>{ if(e.key!=="ArrowUp"&&e.key!=="ArrowDown") return; e.preventDefault();
+    low.style.height=Math.max(40,low.offsetHeight+(e.key==="ArrowUp"?20:-20))+"px"; });
+})();
+
+/* RAW: like the spectrum — wheel zooms (plot = both axes, left axis = amplitude, bottom = time), drag pans, Shift+drag zooms to a box, double-click resets */
+(function rawZoomPan(){
+  const live=$("#live"); let P=null, box=null, lastW=0;
+  const inRaw=()=>st.view==="raw"&&geom&&geom.raw;
+  const full=()=>{ const g=geom.raw; return [g.t0,g.t0+(g.y.length-1)*g.dt]; };
+  const clamp=(a,b)=>{ const [f0,f1]=full(), w=Math.min(b-a,f1-f0), mn=Math.max(w,geom.raw.dt*8);
+    if(b-a<mn){ const c=(a+b)/2; a=c-mn/2; b=c+mn/2; }
+    if(a<f0){ b+=f0-a; a=f0; } if(b>f1){ a-=b-f1; b=f1; } a=Math.max(a,f0);
+    return (a<=f0+1e-12&&b>=f1-1e-12)?null:[a,b]; };
+  const yz=(y0,y1)=>({k:rawYKey(cur()),y0,y1});
+  /* wheel: inside the plot = time and amplitude; over the left axis = amplitude only; under the plot = time only */
+  live.addEventListener("wheel",e=>{ if(!inRaw()) return; e.preventDefault();
+    const rc=live.getBoundingClientRect(), X0=e.clientX-rc.left, Y0=e.clientY-rc.top, k=e.deltaY>0?1.25:1/1.25;
+    const doX=X0>=geom.L-4, doY=Y0<=geom.B+4;
+    const X=Math.max(geom.L,Math.min(geom.R,X0)), Y=Math.max(geom.T,Math.min(geom.B,Y0)), cx=geom.fromX(X), cy=geom.fromY(Y);
+    const now=Date.now(), push=now-lastW>600; lastW=now;
+    const z=doX?clamp(cx+(geom.x0-cx)*k, cx+(geom.x1-cx)*k):st.rawZoom;
+    const y=doY?yz(cy+(geom.y0-cy)*k, cy+(geom.y1-cy)*k):undefined;
+    setRawZoom(z, push, y); },{passive:false});
+  live.addEventListener("pointerdown",e=>{ if(!inRaw()||e.button!==0||e.target.closest("#ovl .knob,#ovl .grab")) return;
+    const rc=live.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top; if(X<geom.L||X>geom.R||Y<geom.T||Y>geom.B) return;
+    P={X,Y,x0:geom.x0,x1:geom.x1,y0:geom.y0,y1:geom.y1,g:{...geom},shift:e.shiftKey,moved:false}; live.setPointerCapture(e.pointerId);
+    if(e.shiftKey){ box=document.createElement("div"); box.className="zbox"; live.appendChild(box); } });
+  live.addEventListener("pointermove",e=>{ if(!P) return; const rc=live.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top;
+    if(P.shift){ Object.assign(box.style,{left:Math.min(X,P.X)+"px",width:Math.abs(X-P.X)+"px",top:Math.min(Y,P.Y)+"px",height:Math.abs(Y-P.Y)+"px"}); return; }
+    if(!P.moved){ if(Math.abs(X-P.X)<3&&Math.abs(Y-P.Y)<3) return; P.moved=true; live.style.cursor="grabbing"; }
+    const g=P.g, dx=(X-P.X)/(g.R-g.L)*(P.x1-P.x0), dy=(Y-P.Y)/(g.B-g.T)*(P.y1-P.y0);
+    setRawZoom(clamp(P.x0-dx,P.x1-dx), P.moved===true&&!P.pushed&&(P.pushed=true), yz(P.y0+dy,P.y1+dy)); });
+  live.addEventListener("pointerup",e=>{ if(!P) return; const rc=live.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top;
+    if(P.shift){ box.remove(); if(Math.abs(X-P.X)>6){ const g=P.g, a=g.fromX(Math.max(g.L,Math.min(X,P.X))), b=g.fromX(Math.min(g.R,Math.max(X,P.X)));
+      const y=Math.abs(Y-P.Y)>6?yz(g.fromY(Math.min(g.B,Math.max(Y,P.Y))),g.fromY(Math.max(g.T,Math.min(Y,P.Y)))):undefined; setRawZoom(clamp(a,b),true,y); } }
+    P=null; live.style.cursor=""; });
+})();
+
+/* zoom & pan on the spectrum: wheel = zoom at the mouse (over an axis = that axis only),
+   drag = pan, Shift+drag = box zoom, double-click = reset */
+(function zoomPan(){
+  const live=$("#live"); let P=null, box=null;
+  const L10=Math.log10, inFft=()=>st.view==="fft"&&geom&&!geom.raw;
+  const cur=()=>({x0:geom.x0,x1:geom.x1,y0:geom.y0,y1:geom.y1});
+  const fromY=Y=>10**(L10(geom.y0)+(geom.B-Y)/(geom.B-geom.T)*(L10(geom.y1)-L10(geom.y0)));
+  const showZ=()=>{ $("#zoomBar").hidden=!st.zoom; };
+  live.addEventListener("wheel",e=>{ if(!inFft()) return; e.preventDefault();
+    const rc=live.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top, k=e.deltaY>0?1.2:1/1.2, z=cur();
+    const zx=Y<=geom.B+4, zy=X>=geom.L-4;   // below the plot → x only, left of it → y only
+    if(zx&&X>=geom.L-4){ const c=L10(geom.fromX(Math.max(geom.L,Math.min(geom.R,X)))); z.x0=10**(c+(L10(z.x0)-c)*k); z.x1=10**(c+(L10(z.x1)-c)*k); }
+    if(zy&&Y<=geom.B+4){ const c=L10(fromY(Math.max(geom.T,Math.min(geom.B,Y)))); z.y0=10**(c+(L10(z.y0)-c)*k); z.y1=10**(c+(L10(z.y1)-c)*k); }
+    if(X<geom.L-4&&Y<=geom.B){ const c=L10(fromY(Y)); z.y0=10**(c+(L10(z.y0)-c)*k); z.y1=10**(c+(L10(z.y1)-c)*k); }
+    if(Y>geom.B+4&&X>=geom.L){ const c=L10(geom.fromX(X)); z.x0=10**(c+(L10(z.x0)-c)*k); z.x1=10**(c+(L10(z.x1)-c)*k); }
+    st.zoom=z; showZ(); draw(); },{passive:false});
+  live.addEventListener("pointerdown",e=>{ if(!inFft()||e.button!==0||e.target.closest("#ovl .knob,#ovl .grab")) return;
+    const rc=live.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top; if(X<geom.L||X>geom.R||Y<geom.T||Y>geom.B) return;
+    P={X,Y,z:cur(),g:{...geom},shift:e.shiftKey}; live.setPointerCapture(e.pointerId);
+    if(e.shiftKey){ box=document.createElement("div"); box.className="zbox"; live.appendChild(box); } else live.style.cursor="grabbing"; });
+  live.addEventListener("pointermove",e=>{ if(!P) return; const rc=live.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top, g=P.g;
+    if(P.shift){ Object.assign(box.style,{left:Math.min(X,P.X)+"px",top:Math.min(Y,P.Y)+"px",width:Math.abs(X-P.X)+"px",height:Math.abs(Y-P.Y)+"px"}); return; }
+    const dlx=(X-P.X)/(g.R-g.L)*(L10(P.z.x1)-L10(P.z.x0)), dly=(Y-P.Y)/(g.B-g.T)*(L10(P.z.y1)-L10(P.z.y0));
+    st.zoom={x0:P.z.x0/10**dlx,x1:P.z.x1/10**dlx,y0:P.z.y0*10**dly,y1:P.z.y1*10**dly}; showZ(); draw(); });
+  live.addEventListener("pointerup",e=>{ if(!P) return; const rc=live.getBoundingClientRect(), X=e.clientX-rc.left, Y=e.clientY-rc.top;
+    if(P.shift){ box.remove(); if(Math.abs(X-P.X)>8&&Math.abs(Y-P.Y)>8){ const a=[geom.fromX(Math.min(X,P.X)),geom.fromX(Math.max(X,P.X))], b=[fromY(Math.max(Y,P.Y)),fromY(Math.min(Y,P.Y))];
+      st.zoom={x0:a[0],x1:a[1],y0:b[0],y1:b[1]}; showZ(); draw(); } }
+    P=null; live.style.cursor=""; });
+  live.addEventListener("dblclick",()=>{ if(st.view==="fft"&&st.zoom){ st.zoom=null; showZ(); draw(); } });
+  $("#zoomReset").onclick=()=>{ st.zoom=null; showZ(); draw(); };
+  $("#zoomApply").onclick=()=>{ if(!st.zoom) return; const f=v=>String(+v.toPrecision(3));
+    st.po.x0=f(st.zoom.x0); st.po.x1=f(st.zoom.x1); st.po.y0=f(st.zoom.y0); st.po.y1=f(st.zoom.y1);
+    $("#pX0").value=st.po.x0; $("#pX1").value=st.po.x1; $("#pY0").value=st.po.y0; $("#pY1").value=st.po.y1; st.zoom=null; showZ(); refresh(); };
+})();
+
+/* drag the edges / corner of the output preview to change figure size (cm) */
+(function figResize(){
+  const box=$("#preview"); let D=null;
+  let A=null;
+  box.addEventListener("pointerdown",e=>{ const a=e.target.dataset&&e.target.dataset.a; if(!a) return;
+    const t=TPL[st.po.tpl]; t.pad=t.pad||{l:0,r:0,t:0,b:0}; A={a,x:e.clientX,y:e.clientY,p:{...t.pad},sc:st.prevSc}; st.figDrag={sc:st.prevSc};
+    box.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); });
+  box.addEventListener("pointermove",e=>{ if(!A) return; const t=TPL[st.po.tpl], dx=(e.clientX-A.x)/A.sc, dy=(e.clientY-A.y)/A.sc, W=t.w*28.3465, H=t.h*28.3465;
+    const P={...A.p}; if(A.a==="l") P.l=A.p.l+dx; if(A.a==="r") P.r=A.p.r-dx; if(A.a==="t") P.t=A.p.t+dy; if(A.a==="b") P.b=A.p.b-dy;
+    if(W-(P.l+P.r)>W*0.3&&H-(P.t+P.b)>H*0.3) t.pad=P; draw(); });
+  const endA=()=>{ if(!A) return; A=null; st.figDrag=null; draw(); };
+  box.addEventListener("pointerup",endA); box.addEventListener("pointercancel",endA);
+  box.addEventListener("pointerdown",e=>{ const h=e.target.dataset&&e.target.dataset.h; if(!h) return;
+    const t=TPL[st.po.tpl], svg=box.querySelector("svg"), sc=svg.getBoundingClientRect().width/(t.w*28.3465);
+    D={h,x:e.clientX,y:e.clientY,w:t.w,hh:t.h,sc}; st.figDrag={sc}; box.setPointerCapture(e.pointerId); e.preventDefault(); });
+  box.addEventListener("pointermove",e=>{ if(!D) return; const t=TPL[st.po.tpl], k=1/(D.sc*28.3465);
+    if(D.h!=="s") t.w=Math.max(3,Math.round((D.w+(e.clientX-D.x)*k)*10)/10);
+    if(D.h!=="e") t.h=Math.max(2,Math.round((D.hh+(e.clientY-D.y)*k)*10)/10);
+    draw(); });
+  const end=()=>{ if(!D) return; D=null; st.figDrag=null; draw(); };
+  box.addEventListener("pointerup",end); box.addEventListener("pointercancel",end);
+})();
+
+/* ================= Office-style colour palette ================= */
+const THEME=["#FFFFFF","#000000","#E7E6E6","#44546A","#4472C4","#ED7D31","#A5A5A5","#FFC000","#5B9BD5","#70AD47"];
+const STANDARD=["#C00000","#FF0000","#FFC000","#FFFF00","#92D050","#00B050","#00B0F0","#0070C0","#002060","#7030A0"];
+function hex2rgb(h){h=h.replace("#","");return [0,2,4].map(i=>parseInt(h.substr(i,2),16));}
+function rgb2hex(r){return "#"+r.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,"0")).join("").toUpperCase();}
+function tint(h,t){ const c=hex2rgb(h); return rgb2hex(t>=0?c.map(v=>v+(255-v)*t):c.map(v=>v*(1+t))); }
+function themeGrid(){ // 6 rows like Office: base, then 4 lighter/darker variants
+  const rows=[THEME];
+  const varsFor=h=>{ if(h==="#FFFFFF") return [-.05,-.15,-.25,-.35,-.5]; if(h==="#000000") return [.5,.35,.25,.15,.05];
+    const l=hex2rgb(h).reduce((a,b)=>a+b)/765; return l<0.2?[.9,.75,.5,.25,.1]:l>0.85?[-.1,-.25,-.5,-.75,-.9]:[.8,.6,.4,-.25,-.5]; };
+  for(let k=0;k<5;k++) rows.push(THEME.map(h=>tint(h,varsFor(h)[k])));
+  return rows.flat();
+}
+const pal=document.createElement("div"); pal.className="pal"; pal.hidden=true; document.body.appendChild(pal);
+let palCb=null, palInput=null;
+function openPal(anchor,current,input,cb){
+  palCb=cb; palInput=input; const cur=(current||"").toUpperCase();
+  const sw=list=>list.map(c=>`<button class="c${c===cur?" on":""}" style="background:${c}" data-c="${c}" title="${c}"></button>`).join("");
+  pal.innerHTML=`<div class="pt">佈景主題色彩</div><div class="grid theme">${sw(themeGrid())}</div><div class="pt">標準色彩</div><div class="grid">${sw(STANDARD)}</div><button class="more" id="palMore">其他色彩…</button>`;
+  pal.hidden=false; const r=anchor.getBoundingClientRect(), w=pal.offsetWidth, h=pal.offsetHeight;
+  pal.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left))+"px"; pal.style.top=(r.bottom+h+6<innerHeight?r.bottom+4:Math.max(8,r.top-h-4))+"px";
+  pal.querySelectorAll(".c").forEach(b=>b.onclick=()=>{ cb(b.dataset.c.toLowerCase()); closePal(); });
+  $("#palMore").onclick=()=>{ closePal(); if(input){ input.value=current||"#000000"; input.click(); } };
+}
+function closePal(){ pal.hidden=true; }
+addEventListener("pointerdown",e=>{ if(!pal.hidden&&!pal.contains(e.target)&&!e.target.closest(".colorbtn")) closePal(); },true);
+addEventListener("keydown",e=>{ if(e.key==="Escape") closePal(); });
+/* any .colorbtn opens the palette; its hidden <input type=color> is used for 其他色彩 and fires the existing handlers */
+document.addEventListener("click",e=>{ const b=e.target.closest(".colorbtn"); if(!b) return; const inp=b.querySelector("input[type=color]");
+  if(!pal.hidden&&palInput===inp){ closePal(); return; }
+  openPal(b,inp.value,inp,c=>{ inp.value=c; inp.dispatchEvent(new Event("input",{bubbles:true})); }); });
+
+/* ================= start: built-in calibration files only, no sample data ================= */
+(function init(){
+  for(const p of (window.CAL_PRESETS||[])){ try{ const c=parseCal(p.text); if(!c.unitGuess&&p.unit){ c.unitGuess=p.unit; c.assumed=true; } calAdd(p.name,c,p.label); }catch(e){} }
+  syncControls(); renderAll(); offerRestore();
+})();
+/* put saved settings into the plain inputs (the others are built from st directly) */
+function syncControls(){ const v=(id,x)=>{ const e=$(id); if(e) e.value=x; }, c=(id,x)=>{ const e=$(id); if(e) e.checked=!!x; };
+  v("#aQ",st.an.q); fillUnits(); v("#aAvg",st.an.avg); v("#aSm",st.an.sm); $("#aSm").disabled=st.an.mode!=="窄頻"; smInfo();
+  c("#aSplit",st.an.split); c("#pSeq",st.po.showSeq); c("#pIndiv",st.po.indiv);
+  v("#pTitle",st.po.title); v("#pYl",st.po.yl); v("#pYg",isF(st.po.ylGap)?st.po.ylGap:0.55); v("#pX0",st.po.x0); v("#pX1",st.po.x1); v("#pY0",st.po.y0); v("#pY1",st.po.y1);
+  c("#pGrid",st.po.grid); v("#pLeg",st.po.leg); c("#pVc",st.po.vc); c("#pVcLeg",st.po.vcLeg); c("#pLegN",st.po.legN);
+  document.querySelectorAll("#tplSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===st.po.tpl)));
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===st.an.mode))); }
+
+/* custom stepper for every number box (also ones added later) */
+(function steppers(){
+  const ch=d=>`<svg viewBox="0 0 8 5"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  function bump(inp,dir){ let v=parseFloat(inp.value); if(!isF(v)) v=parseFloat(inp.min)||0;
+    let s=parseFloat(inp.step); if(!isF(s)||s<=0) s=v?10**(Math.floor(Math.log10(Math.abs(v)))-1):1;   // step="any": move by about 10 % of the value
+    let n=+(v+dir*s).toPrecision(10); const mn=parseFloat(inp.min), mx=parseFloat(inp.max);
+    if(isF(mn)&&n<mn) n=mn; if(isF(mx)&&n>mx) n=mx;
+    inp.value=String(n); inp.dispatchEvent(new Event("input",{bubbles:true})); inp.dispatchEvent(new Event("change",{bubbles:true})); }
+  function wrap(inp){ if(inp.dataset.stp||!inp.parentNode) return; inp.dataset.stp="1";
+    const w=document.createElement("span"); w.className="num"+(inp.classList.contains("grow")?" grow":"");
+    if(inp.style.width){ w.style.width=inp.style.width; inp.style.width=""; }
+    inp.parentNode.insertBefore(w,inp); w.appendChild(inp);
+    const b=document.createElement("span"); b.className="stp";
+    b.innerHTML=`<button type="button" tabindex="-1" aria-label="增加">${ch("M1 4l3-3 3 3")}</button><button type="button" tabindex="-1" aria-label="減少">${ch("M1 1l3 3 3-3")}</button>`;
+    w.appendChild(b);
+    b.querySelectorAll("button").forEach((btn,i)=>{ let t1=null,t2=null; const dir=i?-1:1;
+      const stop=()=>{ clearTimeout(t1); clearInterval(t2); };
+      btn.addEventListener("pointerdown",e=>{ e.preventDefault(); bump(inp,dir); t1=setTimeout(()=>{ t2=setInterval(()=>bump(inp,dir),70); },400); });
+      ["pointerup","pointerleave","pointercancel"].forEach(ev=>btn.addEventListener(ev,stop)); }); }
+  const scan=root=>root.querySelectorAll&&root.querySelectorAll('input[type=number]:not([data-stp])').forEach(wrap);
+  scan(document);
+  new MutationObserver(ms=>{ for(const m of ms) m.addedNodes.forEach(n=>{ if(n.nodeType===1){ if(n.matches&&n.matches('input[type=number]')) wrap(n); else scan(n); } }); }).observe(document.body,{childList:true,subtree:true});
+})();
+</script>
+</html>

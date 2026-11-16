@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>使用說明｜FFT Velocity Studio</title>
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <header class="top"><b>FFT Velocity Studio</b><a href="guide.html">使用說明</a><a href="../index.html">開啟工具 →</a></header>
+  <main>
+    <h1>使用說明</h1>
+    <p class="lead">從載入 TDMS 檔到輸出論文用的頻譜圖，五個步驟完成。</p>
+
+    <section>
+      <h2>快速開始</h2>
+      <ol>
+        <li>在「資料」分頁按「＋ 加入資料」，或直接把 <code>.tdms</code> 檔拖進視窗。</li>
+        <li>在「校正」下拉選單選擇感測器（內建 SN1922 垂直、東、北三軸），或選擇自己的校正檔。</li>
+        <li>勾選要分析的量測序列（載入時預設全部不勾，由你決定要畫哪些）。</li>
+        <li>在「分析」分頁選擇窄頻或 1/3 倍頻程、物理量與平均方式。</li>
+        <li>在「圖表」分頁選擇樣板，切換到「輸出預覽」，再按「匯出 PNG」或「匯出 SVG」。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>支援的檔案</h2>
+      <table>
+        <tr><th>類型</th><th>格式</th><th>說明</th></tr>
+        <tr><td>FFT</td><td><code>.tdms</code></td><td>一欄頻率，其餘每欄是一條量測序列</td></tr>
+        <tr><td>RAW</td><td><code>.tdms</code></td><td>檔名含 RAW；與 FFT 同名（FFT 換成 RAW）時自動配對。只有 RAW 時，工具會自行計算 FFT</td></tr>
+        <tr><td>校正檔</td><td><code>.dat</code> <code>.txt</code> <code>.csv</code></td><td>兩欄：頻率、靈敏度；表頭寫明單位可自動判讀</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>單位換算</h2>
+      <p>速度 = FFT 電壓 ÷ 前級增益 ÷ 感測器靈敏度 S(f)。</p>
+      <p>S(f) 在對數座標上內插；低於校正範圍的頻率不顯示，高於範圍則沿用最後一點。位移與加速度由速度除以或乘以 2πf 得到。</p>
+      <p class="note">單位列顯示 ✓ 代表換算結果在合理範圍；出現 ⚠ 時，請按「單位設定」手動指定。</p>
+    </section>
+
+    <section>
+      <h2>VC 準則</h2>
+      <p>取平均頻譜的 1/3 倍頻程 RMS
